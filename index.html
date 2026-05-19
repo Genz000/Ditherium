@@ -158,6 +158,26 @@
       </div>
     </div>
 
+    <div class="panel open" id="p-dither">
+      <div class="panel-header" onclick="togglePanel('p-dither')"><span>Dither Algorithm</span><span class="arrow">▶</span></div>
+      <div class="panel-body">
+        <div class="row">
+          <label>Mode</label>
+          <select id="ditherMode" onchange="pushHistory();render()">
+            <option value="threshold">Threshold</option>
+            <option value="ordered" selected>Ordered (Bayer)</option>
+            <option value="floyd">Floyd-Steinberg</option>
+            <option value="atkinson">Atkinson</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Levels</label>
+          <input type="range" id="levelsSlider" min="2" max="7" step="1" value="7" oninput="updateSlider('levels',this.value)">
+          <span class="val" id="levelsVal">7</span>
+        </div>
+      </div>
+    </div>
+
     <div class="panel open" id="p-grid">
       <div class="panel-header" onclick="togglePanel('p-grid')"><span>Grid Resolution</span><span class="arrow">▶</span></div>
       <div class="panel-body">
@@ -233,25 +253,6 @@
       </div>
     </div>
 
-    <div class="panel" id="p-dither">
-      <div class="panel-header" onclick="togglePanel('p-dither')"><span>Dither Algorithm</span><span class="arrow">▶</span></div>
-      <div class="panel-body">
-        <div class="row">
-          <label>Mode</label>
-          <select id="ditherMode" onchange="pushHistory();render()">
-            <option value="threshold">Threshold</option>
-            <option value="ordered" selected>Ordered (Bayer)</option>
-            <option value="floyd">Floyd-Steinberg</option>
-            <option value="atkinson">Atkinson</option>
-          </select>
-        </div>
-        <div class="row">
-          <label>Levels</label>
-          <input type="range" id="levelsSlider" min="2" max="7" step="1" value="7" oninput="updateSlider('levels',this.value)">
-          <span class="val" id="levelsVal">7</span>
-        </div>
-      </div>
-    </div>
 
   </div>
 
