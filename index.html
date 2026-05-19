@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dither Studio</title>
+<title>Detherium</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Unbounded:wght@300;400;700&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,12 +13,14 @@
     --muted: #888; --accent: #e8d5b0; --accent2: #c4a882;
     --track: #252525; --thumb: #e8d5b0;
   }
-  body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
-  header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: var(--surface); gap: 16px; flex-wrap: wrap; }
+  html, body { height: 100%; overflow: hidden; }
+  body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: var(--surface); gap: 16px; flex-wrap: wrap; flex-shrink: 0; }
   .logo { font-family: 'Unbounded', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; }
   .logo span { color: var(--muted); font-weight: 300; }
-  .main { display: grid; grid-template-columns: 320px 1fr; flex: 1; overflow: hidden; }
-  .sidebar { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+  .main { display: grid; grid-template-columns: clamp(240px, 28vw, 320px) 1fr; flex: 1; min-height: 0; overflow: hidden; }
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
+  @media (max-width: 640px) { .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .sidebar { max-height: 45vh; } }
   .panel { border-bottom: 1px solid var(--border); }
   .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; cursor: pointer; background: var(--surface2); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); user-select: none; transition: color 0.15s; }
   .panel-header:hover { color: var(--text); }
@@ -117,7 +119,7 @@
 <div class="drop-overlay" id="dropOverlay">DROP TO DITHER</div>
 
 <header>
-  <div class="logo">DITHER<span>STUDIO</span></div>
+  <div class="logo">DETHER<span>IUM</span></div>
   <div class="toolbar" id="toolbar" style="display:none">
     <div class="undo-btns">
       <button class="undo-btn" id="undoBtn" onclick="undo()" title="Undo (Ctrl+Z)" disabled>↩</button>
