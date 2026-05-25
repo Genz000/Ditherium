@@ -16,8 +16,9 @@
   html, body { height: 100%; overflow: hidden; }
   body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
   header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: var(--surface); gap: 16px; flex-wrap: wrap; flex-shrink: 0; }
-  .logo { font-family: 'Unbounded', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; }
+  .logo { font-family: 'Unbounded', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; display: flex; align-items: center; gap: 10px; }
   .logo span { color: var(--muted); font-weight: 300; }
+  .logo-icon { width: 30px; height: 30px; flex-shrink: 0; display: block; }
   .main { display: grid; grid-template-columns: clamp(240px, 28vw, 320px) 1fr; flex: 1; min-height: 0; overflow: hidden; }
   .sidebar { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
   @media (max-width: 640px) { .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .sidebar { max-height: 45vh; } }
@@ -119,7 +120,7 @@
 <div class="drop-overlay" id="dropOverlay">DROP TO DITHER</div>
 
 <header>
-  <div class="logo">DETHER<span>IUM</span></div>
+  <div class="logo"><img src="logo.svg" class="logo-icon" alt="">DETHER<span>IUM</span></div>
   <div class="toolbar" id="toolbar" style="display:none">
     <div class="undo-btns">
       <button class="undo-btn" id="undoBtn" onclick="undo()" title="Undo (Ctrl+Z)" disabled>↩</button>
