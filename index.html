@@ -40,6 +40,10 @@
   .toggle.on { background: var(--accent2); }
   .toggle::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--text); top: 3px; left: 3px; transition: left 0.2s; }
   .toggle.on::after { left: 19px; }
+  .ratio-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+  .ratio-btn { background: var(--track); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 9px; border-radius: 4px; cursor: pointer; transition: all 0.12s; letter-spacing: 0.04em; }
+  .ratio-btn:hover { border-color: var(--accent2); color: var(--text); }
+  .ratio-btn.active { background: var(--accent2); color: #1a1209; border-color: var(--accent2); }
   .upload-zone { border: 1px dashed var(--border2); border-radius: 6px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
   .upload-zone:hover { border-color: var(--accent2); background: rgba(232,213,176,0.03); }
   .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
@@ -152,9 +156,16 @@
           <div class="icon">⬆</div>
           <p>Click or drop image / video</p>
         </div>
-        <div class="toggle-row">
-          <label style="margin:0">Square crop (1:1)</label>
-          <button class="toggle on" id="squareToggle" onclick="toggleSquare()"></button>
+        <div>
+          <label style="margin-bottom:8px">Crop Ratio</label>
+          <div class="ratio-btns" id="ratioBtns">
+            <button class="ratio-btn" data-ratio="free" onclick="setCropRatio('free')">Free</button>
+            <button class="ratio-btn active" data-ratio="1:1" onclick="setCropRatio('1:1')">1:1</button>
+            <button class="ratio-btn" data-ratio="4:3" onclick="setCropRatio('4:3')">4:3</button>
+            <button class="ratio-btn" data-ratio="3:4" onclick="setCropRatio('3:4')">3:4</button>
+            <button class="ratio-btn" data-ratio="16:9" onclick="setCropRatio('16:9')">16:9</button>
+            <button class="ratio-btn" data-ratio="9:16" onclick="setCropRatio('9:16')">9:16</button>
+          </div>
         </div>
       </div>
     </div>
@@ -334,7 +345,7 @@ const SHADE_COLORS = ['#0d0d0d','#2b2b2b','#555555','#808080','#aaaaaa','#d4d4d4
 
 let state = {
   sourceImage: null, sourceVideo: null,
-  cols: 40, rows: 40, linkRowsCols: true, squareCrop: true,
+  cols: 40, rows: 40, linkRowsCols: true, cropRatio: '1:1',
   bgColor: '#0a0a0a', threshold: 128, contrast: 1.0,
   scale: 0.85, toneScale: 1.0, invert: false, invertScale: false,
   rotation: 9, ditherMode: 'ordered', levels: 7, activeTone: 3,
@@ -357,7 +368,7 @@ let _suppressSnapshot = false;
 function snapshotableKeys() {
   return {
     cols: state.cols, rows: state.rows, linkRowsCols: state.linkRowsCols,
-    squareCrop: state.squareCrop, bgColor: state.bgColor,
+    cropRatio: state.cropRatio, bgColor: state.bgColor,
     threshold: state.threshold, contrast: state.contrast,
     scale: state.scale, toneScale: state.toneScale,
     invert: state.invert, invertScale: state.invertScale,
@@ -417,7 +428,7 @@ function syncUIFromState() {
   document.getElementById('bgColor').value = state.bgColor;
   document.getElementById('bgHex').value = state.bgColor;
   document.getElementById('ditherMode').value = state.ditherMode;
-  document.getElementById('squareToggle').classList.toggle('on', state.squareCrop);
+  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('active', b.dataset.ratio === state.cropRatio));
   document.getElementById('linkToggle').classList.toggle('on', state.linkRowsCols);
   document.getElementById('invertToggle').classList.toggle('on', state.invert);
   document.getElementById('invertScaleToggle').classList.toggle('on', state.invertScale);
@@ -462,7 +473,23 @@ function updateSlider(key, val) {
   render();
 }
 
-function toggleSquare(){ state.squareCrop=!state.squareCrop; document.getElementById('squareToggle').classList.toggle('on',state.squareCrop); pushHistory(); if(state.sourceImage) loadImageToCanvas(); }
+function setCropRatio(ratio) {
+  state.cropRatio = ratio;
+  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('active', b.dataset.ratio === ratio));
+  pushHistory();
+  if (state.sourceImage) loadImageToCanvas();
+  else if (state.sourceVideo) {}
+}
+function computeCrop(srcW, srcH) {
+  if (state.cropRatio === 'free') return { sx: 0, sy: 0, w: srcW, h: srcH };
+  const [rw, rh] = state.cropRatio.split(':').map(Number);
+  const targetAspect = rw / rh;
+  const srcAspect = srcW / srcH;
+  let w, h;
+  if (targetAspect > srcAspect) { w = srcW; h = Math.round(srcW / targetAspect); }
+  else { h = srcH; w = Math.round(srcH * targetAspect); }
+  return { sx: Math.floor((srcW - w) / 2), sy: Math.floor((srcH - h) / 2), w, h };
+}
 function toggleLink(){ state.linkRowsCols=!state.linkRowsCols; document.getElementById('linkToggle').classList.toggle('on',state.linkRowsCols); pushHistory(); }
 function toggleInvert(){ state.invert=!state.invert; document.getElementById('invertToggle').classList.toggle('on',state.invert); pushHistory(); render(); }
 function toggleInvertScale(){ state.invertScale=!state.invertScale; document.getElementById('invertScaleToggle').classList.toggle('on',state.invertScale); pushHistory(); render(); }
@@ -554,9 +581,7 @@ function animateVideo(){ if(!state.sourceVideo) return; renderFromVideoFrame(); 
 
 function renderFromVideoFrame() {
   const v=state.sourceVideo; if(!v||v.readyState<2) return;
-  const size=state.squareCrop?Math.min(v.videoWidth,v.videoHeight):null;
-  const w=state.squareCrop?size:v.videoWidth, h=state.squareCrop?size:v.videoHeight;
-  const sx=state.squareCrop?(v.videoWidth-size)/2:0, sy=state.squareCrop?(v.videoHeight-size)/2:0;
+  const {sx,sy,w,h}=computeCrop(v.videoWidth,v.videoHeight);
   srcCanvas.width=w; srcCanvas.height=h;
   srcCtx.drawImage(v,sx,sy,w,h,0,0,w,h);
   drawDithered(document.getElementById('ditheredCanvas'),400,Math.round(400*h/w));
@@ -564,9 +589,7 @@ function renderFromVideoFrame() {
 
 function loadImageToCanvas() {
   const img=state.sourceImage;
-  const size=state.squareCrop?Math.min(img.width,img.height):null;
-  const w=state.squareCrop?size:img.width, h=state.squareCrop?size:img.height;
-  const sx=state.squareCrop?(img.width-size)/2:0, sy=state.squareCrop?(img.height-size)/2:0;
+  const {sx,sy,w,h}=computeCrop(img.width,img.height);
   srcCanvas.width=w; srcCanvas.height=h;
   srcCtx.drawImage(img,sx,sy,w,h,0,0,w,h);
   showCanvases(); render();
