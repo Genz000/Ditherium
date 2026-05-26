@@ -44,11 +44,7 @@
   .ratio-btn { background: var(--track); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 9px; border-radius: 4px; cursor: pointer; transition: all 0.12s; letter-spacing: 0.04em; }
   .ratio-btn:hover { border-color: var(--accent2); color: var(--text); }
   .ratio-btn.active { background: var(--accent2); color: #1a1209; border-color: var(--accent2); }
-  .shape-btns { display: flex; flex-wrap: wrap; gap: 4px; }
-  .shape-btn { background: var(--track); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: all 0.12s; letter-spacing: 0.04em; display: flex; align-items: center; gap: 5px; }
-  .shape-btn:hover { border-color: var(--accent2); color: var(--text); }
-  .shape-btn.active { background: var(--accent2); color: #1a1209; border-color: var(--accent2); }
-  .shape-icon { font-size: 12px; line-height: 1; }
+  #baseShapeSelect { width: 100%; }
   .upload-zone { border: 1px dashed var(--border2); border-radius: 6px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
   .upload-zone:hover { border-color: var(--accent2); background: rgba(232,213,176,0.03); }
   .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
@@ -208,13 +204,14 @@
     <div class="panel open" id="p-baseshape">
       <div class="panel-header" onclick="togglePanel('p-baseshape')"><span>Base Shape</span><span class="arrow">▶</span></div>
       <div class="panel-body">
-        <div class="shape-btns" id="shapeBtns">
-          <button class="shape-btn active" data-shape="circle" onclick="setBaseShape('circle')"><span class="shape-icon">●</span>Circle</button>
-          <button class="shape-btn" data-shape="square" onclick="setBaseShape('square')"><span class="shape-icon">■</span>Square</button>
-          <button class="shape-btn" data-shape="triangle" onclick="setBaseShape('triangle')"><span class="shape-icon">▲</span>Triangle</button>
-          <button class="shape-btn" data-shape="diamond" onclick="setBaseShape('diamond')"><span class="shape-icon">◆</span>Diamond</button>
-        </div>
-        <div class="svg-slot" id="customShapeSlot" style="margin-top:4px">
+        <select id="baseShapeSelect" onchange="setBaseShape(this.value)">
+          <option value="circle">● Circle</option>
+          <option value="square">■ Square</option>
+          <option value="triangle">▲ Triangle</option>
+          <option value="diamond">◆ Diamond</option>
+          <option value="custom">✦ Custom SVG</option>
+        </select>
+        <div class="svg-slot" id="customShapeSlot" style="margin-top:8px;display:none">
           <input type="file" accept=".svg,image/svg+xml" onchange="handleCustomShapeUpload(event)" onclick="event.stopPropagation()">
           <div class="slot-preview" id="customShapePreview">+</div>
           <div class="slot-label" id="customShapeLabel">Upload custom SVG</div>
@@ -463,7 +460,7 @@ function syncUIFromState() {
   document.getElementById('bgHex').value = state.bgColor;
   document.getElementById('ditherMode').value = state.ditherMode;
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('active', b.dataset.ratio === state.cropRatio));
-  document.querySelectorAll('.shape-btn').forEach(b => b.classList.toggle('active', b.dataset.shape === state.baseShape));
+  document.getElementById('baseShapeSelect').value = state.baseShape;
   document.getElementById('linkToggle').classList.toggle('on', state.linkRowsCols);
   document.getElementById('invertToggle').classList.toggle('on', state.invert);
   document.getElementById('invertScaleToggle').classList.toggle('on', state.invertScale);
@@ -520,9 +517,9 @@ function updateSlider(key, val) {
 
 function setBaseShape(shape) {
   state.baseShape = shape;
-  document.querySelectorAll('.shape-btn').forEach(b => b.classList.toggle('active', b.dataset.shape === shape));
+  document.getElementById('baseShapeSelect').value = shape;
   const slot = document.getElementById('customShapeSlot');
-  if (slot) slot.style.borderColor = shape === 'custom' ? 'var(--accent2)' : '';
+  if (slot) slot.style.display = shape === 'custom' ? '' : 'none';
   pushHistory(); render();
 }
 
