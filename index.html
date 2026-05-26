@@ -44,6 +44,11 @@
   .ratio-btn { background: var(--track); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 9px; border-radius: 4px; cursor: pointer; transition: all 0.12s; letter-spacing: 0.04em; }
   .ratio-btn:hover { border-color: var(--accent2); color: var(--text); }
   .ratio-btn.active { background: var(--accent2); color: #1a1209; border-color: var(--accent2); }
+  .shape-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+  .shape-btn { background: var(--track); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: all 0.12s; letter-spacing: 0.04em; display: flex; align-items: center; gap: 5px; }
+  .shape-btn:hover { border-color: var(--accent2); color: var(--text); }
+  .shape-btn.active { background: var(--accent2); color: #1a1209; border-color: var(--accent2); }
+  .shape-icon { font-size: 12px; line-height: 1; }
   .upload-zone { border: 1px dashed var(--border2); border-radius: 6px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
   .upload-zone:hover { border-color: var(--accent2); background: rgba(232,213,176,0.03); }
   .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
@@ -186,6 +191,23 @@
           <label>Levels</label>
           <input type="range" id="levelsSlider" min="2" max="7" step="1" value="7" oninput="updateSlider('levels',this.value)">
           <span class="val" id="levelsVal">7</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel open" id="p-baseshape">
+      <div class="panel-header" onclick="togglePanel('p-baseshape')"><span>Base Shape</span><span class="arrow">▶</span></div>
+      <div class="panel-body">
+        <div class="shape-btns" id="shapeBtns">
+          <button class="shape-btn active" data-shape="circle" onclick="setBaseShape('circle')"><span class="shape-icon">●</span>Circle</button>
+          <button class="shape-btn" data-shape="square" onclick="setBaseShape('square')"><span class="shape-icon">■</span>Square</button>
+          <button class="shape-btn" data-shape="triangle" onclick="setBaseShape('triangle')"><span class="shape-icon">▲</span>Triangle</button>
+          <button class="shape-btn" data-shape="diamond" onclick="setBaseShape('diamond')"><span class="shape-icon">◆</span>Diamond</button>
+        </div>
+        <div class="svg-slot" id="customShapeSlot" style="margin-top:4px">
+          <input type="file" accept=".svg,image/svg+xml" onchange="handleCustomShapeUpload(event)" onclick="event.stopPropagation()">
+          <div class="slot-preview" id="customShapePreview">+</div>
+          <div class="slot-label" id="customShapeLabel">Upload custom SVG</div>
         </div>
       </div>
     </div>
@@ -345,7 +367,8 @@ const SHADE_COLORS = ['#0d0d0d','#2b2b2b','#555555','#808080','#aaaaaa','#d4d4d4
 
 let state = {
   sourceImage: null, sourceVideo: null,
-  cols: 40, rows: 40, linkRowsCols: true, cropRatio: '1:1',
+  cols: 40, rows: 40, linkRowsCols: true, cropRatio: '1:1', baseShape: 'circle',
+  baseShapeSvgData: null, baseShapeImgs: new Array(7).fill(null),
   bgColor: '#0a0a0a', threshold: 128, contrast: 1.0,
   scale: 0.85, toneScale: 1.0, invert: false, invertScale: false,
   rotation: 9, ditherMode: 'ordered', levels: 7, activeTone: 3,
@@ -368,7 +391,7 @@ let _suppressSnapshot = false;
 function snapshotableKeys() {
   return {
     cols: state.cols, rows: state.rows, linkRowsCols: state.linkRowsCols,
-    cropRatio: state.cropRatio, bgColor: state.bgColor,
+    cropRatio: state.cropRatio, baseShape: state.baseShape, bgColor: state.bgColor,
     threshold: state.threshold, contrast: state.contrast,
     scale: state.scale, toneScale: state.toneScale,
     invert: state.invert, invertScale: state.invertScale,
@@ -429,6 +452,7 @@ function syncUIFromState() {
   document.getElementById('bgHex').value = state.bgColor;
   document.getElementById('ditherMode').value = state.ditherMode;
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('active', b.dataset.ratio === state.cropRatio));
+  document.querySelectorAll('.shape-btn').forEach(b => b.classList.toggle('active', b.dataset.shape === state.baseShape));
   document.getElementById('linkToggle').classList.toggle('on', state.linkRowsCols);
   document.getElementById('invertToggle').classList.toggle('on', state.invert);
   document.getElementById('invertScaleToggle').classList.toggle('on', state.invertScale);
@@ -471,6 +495,80 @@ function updateSlider(key, val) {
   else if(key==='levels'){ state.levels=parseInt(val); document.getElementById('levelsVal').textContent=val; }
   pushHistory();
   render();
+}
+
+function setBaseShape(shape) {
+  state.baseShape = shape;
+  document.querySelectorAll('.shape-btn').forEach(b => b.classList.toggle('active', b.dataset.shape === shape));
+  const slot = document.getElementById('customShapeSlot');
+  if (slot) slot.style.borderColor = shape === 'custom' ? 'var(--accent2)' : '';
+  pushHistory(); render();
+}
+
+async function handleCustomShapeUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  state.baseShapeSvgData = await file.text();
+  document.getElementById('customShapeLabel').textContent = file.name.replace('.svg','').slice(0,14);
+  await rebuildAllBaseShapeImages();
+  setBaseShape('custom');
+}
+
+async function rebuildBaseShapeImage(index) {
+  if (!state.baseShapeSvgData) { state.baseShapeImgs[index] = null; return; }
+  const colored = state.baseShapeSvgData
+    .replace(/fill="[^"]*"/g, `fill="${state.svgColors[index]}"`)
+    .replace(/stroke="[^"]*"/g, `stroke="${state.svgColors[index]}"`);
+  const blob = new Blob([colored], {type:'image/svg+xml'});
+  const url = URL.createObjectURL(blob);
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => { state.baseShapeImgs[index] = img; URL.revokeObjectURL(url); res(); };
+    img.src = url;
+  });
+}
+
+async function rebuildAllBaseShapeImages() {
+  await Promise.all([...Array(7).keys()].map(i => rebuildBaseShapeImage(i)));
+  render();
+}
+
+function drawBuiltinShape(ctx, shape, r) {
+  ctx.beginPath();
+  switch(shape) {
+    case 'square':
+      ctx.rect(-r, -r, r * 2, r * 2); break;
+    case 'triangle':
+      ctx.moveTo(0, -r);
+      ctx.lineTo(r * 0.866, r * 0.5);
+      ctx.lineTo(-r * 0.866, r * 0.5);
+      ctx.closePath(); break;
+    case 'diamond':
+      ctx.moveTo(0, -r); ctx.lineTo(r, 0);
+      ctx.lineTo(0, r);  ctx.lineTo(-r, 0);
+      ctx.closePath(); break;
+    default: // circle
+      ctx.arc(0, 0, r, 0, Math.PI * 2); break;
+  }
+  ctx.fill();
+}
+
+function buildShapeElement(shape, cx, cy, r, rotation, color) {
+  const t = `rotate(${rotation},${cx},${cy})`;
+  const x = parseFloat(cx), y = parseFloat(cy);
+  switch(shape) {
+    case 'square':
+      return `<rect x="${(x-r).toFixed(2)}" y="${(y-r).toFixed(2)}" width="${(r*2).toFixed(2)}" height="${(r*2).toFixed(2)}" fill="${color}" transform="${t}"/>`;
+    case 'triangle': {
+      const pts = `${x.toFixed(2)},${(y-r).toFixed(2)} ${(x+r*0.866).toFixed(2)},${(y+r*0.5).toFixed(2)} ${(x-r*0.866).toFixed(2)},${(y+r*0.5).toFixed(2)}`;
+      return `<polygon points="${pts}" fill="${color}" transform="${t}"/>`;
+    }
+    case 'diamond': {
+      const pts = `${x.toFixed(2)},${(y-r).toFixed(2)} ${(x+r).toFixed(2)},${y.toFixed(2)} ${x.toFixed(2)},${(y+r).toFixed(2)} ${(x-r).toFixed(2)},${y.toFixed(2)}`;
+      return `<polygon points="${pts}" fill="${color}" transform="${t}"/>`;
+    }
+    default:
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" transform="${t}"/>`;
+  }
 }
 
 function setCropRatio(ratio) {
@@ -678,6 +776,7 @@ function drawDithered(canvas, displayW, displayH) {
   ctx.fillRect(0,0,displayW,displayH);
 
   const cellW=displayW/cols, cellH=displayH/rows;
+  const cellSize=Math.min(cellW,cellH);
   const rotRad=state.rotation*Math.PI/180;
   const levels=state.levels;
 
@@ -688,11 +787,12 @@ function drawDithered(canvas, displayW, displayH) {
     const raw=state.invertScale?(1-t):t;
     let sc=Math.max(0.02,Math.min(1.4,(0.5+(raw-0.5)*state.toneScale)*state.scale));
     const cx=col*cellW+cellW/2, cy=row*cellH+cellH/2;
-    const rx=(cellW/2)*sc, ry=(cellH/2)*sc;
+    const r=(cellSize/2)*sc;
     ctx.save(); ctx.translate(cx,cy); ctx.rotate(rotRad);
     const svgImg=state.svgImages[level];
-    if(svgImg){ ctx.drawImage(svgImg,-rx,-ry,rx*2,ry*2); }
-    else { ctx.fillStyle=state.svgColors[level]; ctx.beginPath(); ctx.ellipse(0,0,rx,ry,0,0,Math.PI*2); ctx.fill(); }
+    if(svgImg){ ctx.drawImage(svgImg,-r,-r,r*2,r*2); }
+    else if(state.baseShape==='custom'&&state.baseShapeImgs[level]){ ctx.drawImage(state.baseShapeImgs[level],-r,-r,r*2,r*2); }
+    else { ctx.fillStyle=state.svgColors[level]; drawBuiltinShape(ctx,state.baseShape,r); }
     ctx.restore();
   }
 }
@@ -736,6 +836,7 @@ function buildSvgString(w,h){
   const cols=state.cols, rows=state.rows;
   const quantized=computeQuantized(cols,rows);
   const cellW=w/cols, cellH=h/rows;
+  const cellSize=Math.min(cellW,cellH);
   const levels=state.levels;
   let shapes='';
   for(let row=0;row<rows;row++) for(let col=0;col<cols;col++){
@@ -745,9 +846,9 @@ function buildSvgString(w,h){
     const raw=state.invertScale?(1-t):t;
     let sc=Math.max(0.02,Math.min(1.4,(0.5+(raw-0.5)*state.toneScale)*state.scale));
     const cx=(col*cellW+cellW/2).toFixed(2), cy=(row*cellH+cellH/2).toFixed(2);
-    const rx=((cellW/2)*sc).toFixed(2), ry=((cellH/2)*sc).toFixed(2);
+    const r=((cellSize/2)*sc).toFixed(2);
     const color=state.svgColors[level];
-    shapes+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${color}" transform="rotate(${state.rotation},${cx},${cy})"/>`;
+    shapes+=buildShapeElement(state.baseShape,cx,cy,parseFloat(r),state.rotation,color);
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="${state.bgColor}"/>${shapes}</svg>`;
 }
