@@ -419,17 +419,29 @@
       oc.fillStyle = '#0a0a0a';
       oc.fillRect(0, 0, out.width, out.height);
 
+      // first pass: sample cell luminances
+      const lums = [];
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < COLS; col++) {
           let sum = 0, count = 0;
-          const x0 = Math.floor(col * cellW), y0 = Math.floor(row * cellH);
+          const x0 = Math.floor(col*cellW), y0 = Math.floor(row*cellH);
           const x1 = Math.min(Math.floor((col+1)*cellW), img.naturalWidth-1);
           const y1 = Math.min(Math.floor((row+1)*cellH), img.naturalHeight-1);
           for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-            const i = (y * img.naturalWidth + x) * 4;
-            sum += 0.299*px[i] + 0.587*px[i+1] + 0.114*px[i+2]; count++;
+            const i = (y*img.naturalWidth+x)*4;
+            sum += 0.299*px[i]+0.587*px[i+1]+0.114*px[i+2]; count++;
           }
-          let lum = count ? sum / count : 0;
+          lums.push(count ? sum/count : 0);
+        }
+      }
+      // contrast-stretch so every image fills the full dot-size range
+      const minL = Math.min(...lums), maxL = Math.max(...lums);
+      const range = maxL - minL || 1;
+
+      // second pass: draw dots
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < COLS; col++) {
+          let lum = (lums[row*COLS+col] - minL) / range * 255;
           const bi = (row%4)*4 + (col%4);
           lum = lum > (bayer[bi]/16)*255 ? Math.min(255,lum+20) : Math.max(0,lum-20);
           const toneIdx = Math.round((lum/255)*6);
