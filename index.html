@@ -171,13 +171,13 @@
   .compare-wrap {
     position: relative;
     width: 100%;
+    max-width: 560px;
     border-radius: 10px;
     overflow: hidden;
     border: 1px solid var(--border);
     cursor: col-resize;
     user-select: none;
-    /* fixed aspect to match the hero.jpg landscape ratio */
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 1 / 1;
     background: var(--bg);
     box-shadow: 0 0 60px rgba(0,0,0,0.8), 0 0 0 1px var(--border);
   }
@@ -187,21 +187,21 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
     pointer-events: none;
   }
 
-  /* BEFORE layer – full image with blur/desaturate */
+  /* BEFORE layer – raw original, no effects */
   .compare-before {
     z-index: 1;
-    filter: grayscale(100%) blur(0.5px);
+    background: #fff;
   }
 
-  /* AFTER layer – dithered, clipped by divider */
+  /* AFTER layer – dithered, shows on the right of the divider */
   .compare-after {
     z-index: 2;
-    clip-path: inset(0 50% 0 0);
+    clip-path: inset(0 0 0 50%);
   }
 
   /* divider line */
@@ -316,10 +316,10 @@
   <div class="section-label">Example output</div>
 
   <div class="compare-wrap" id="compareWrap">
-    <!-- BEFORE: plain photo (simulated by grayscale filter on same image) -->
-    <img class="compare-before" src="hero.jpg" alt="Original photo">
-    <!-- AFTER: dithered version -->
-    <img class="compare-after" id="afterImg" src="hero.jpg" alt="Dithered output">
+    <!-- BEFORE: raw original image, no effects -->
+    <img class="compare-before" src="cursor.png" alt="Original">
+    <!-- AFTER: dithered version rendered on canvas -->
+    <img class="compare-after" id="afterImg" src="cursor.png" alt="Dithered output">
 
     <div class="compare-divider" id="divider"></div>
     <div class="compare-handle" id="handle">
@@ -352,11 +352,14 @@
     const p = pct.toFixed(2);
     divider.style.left = p + '%';
     handle.style.left  = p + '%';
-    after.style.clipPath = `inset(0 ${(100 - pct).toFixed(2)}% 0 0)`;
+    after.style.clipPath = `inset(0 0 0 ${pct.toFixed(2)}%)`;
   }
 
-  // initialise
-  setDivider(wrap.getBoundingClientRect().left + wrap.getBoundingClientRect().width * 0.5);
+  // initialise at 50%
+  pct = 50;
+  divider.style.left = '50%';
+  handle.style.left  = '50%';
+  after.style.clipPath = 'inset(0 0 0 50%)';
 
   wrap.addEventListener('mousedown', e => { dragging = true; setDivider(e.clientX); });
   window.addEventListener('mousemove', e => { if (dragging) setDivider(e.clientX); });
@@ -449,9 +452,9 @@
         }
       }
 
-      after.src = out.toDataURL('image/jpeg', 0.92);
+      after.src = out.toDataURL('image/png');
     };
-    img.src = 'hero.jpg';
+    img.src = 'cursor.png';
   })();
 </script>
 
