@@ -141,13 +141,23 @@
     position: relative;
     z-index: 2;
     width: 100%;
-    max-width: 900px;
+    max-width: 1100px;
     padding: 0 2rem 6rem;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2rem;
+  }
+
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    width: 100%;
+  }
+  @media (max-width: 640px) {
+    .compare-grid { grid-template-columns: 1fr; }
   }
 
   .section-label {
@@ -171,7 +181,6 @@
   .compare-wrap {
     position: relative;
     width: 100%;
-    max-width: 560px;
     border-radius: 10px;
     overflow: hidden;
     border: 1px solid var(--border);
@@ -315,21 +324,34 @@
 <div class="compare-section">
   <div class="section-label">Example output</div>
 
-  <div class="compare-wrap" id="compareWrap">
-    <!-- BEFORE: raw original image, no effects -->
-    <img class="compare-before" src="cursor.png" alt="Original">
-    <!-- AFTER: dithered version rendered on canvas -->
-    <img class="compare-after" id="afterImg" src="cursor.png" alt="Dithered output">
+  <div class="compare-grid">
 
-    <div class="compare-divider" id="divider"></div>
-    <div class="compare-handle" id="handle">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M4 7H1M1 7l2-2M1 7l2 2M10 7h3M13 7l-2-2M13 7l-2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
+    <div class="compare-wrap" id="compareWrap1">
+      <img class="compare-before" src="cursor.png" alt="Original cursor">
+      <img class="compare-after" id="afterImg1" src="cursor.png" alt="Dithered cursor">
+      <div class="compare-divider" id="divider1"></div>
+      <div class="compare-handle" id="handle1">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M4 7H1M1 7l2-2M1 7l2 2M10 7h3M13 7l-2-2M13 7l-2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="compare-tag before">Original</span>
+      <span class="compare-tag after">Dithered</span>
     </div>
 
-    <span class="compare-tag before">Original</span>
-    <span class="compare-tag after">Dithered</span>
+    <div class="compare-wrap" id="compareWrap2">
+      <img class="compare-before" src="rocket.jpg" alt="Original rocket">
+      <img class="compare-after" id="afterImg2" src="rocket.jpg" alt="Dithered rocket">
+      <div class="compare-divider" id="divider2"></div>
+      <div class="compare-handle" id="handle2">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M4 7H1M1 7l2-2M1 7l2 2M10 7h3M13 7l-2-2M13 7l-2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="compare-tag before">Original</span>
+      <span class="compare-tag after">Dithered</span>
+    </div>
+
   </div>
 </div>
 
@@ -339,123 +361,93 @@
 
 <script>
   // ── Before / After slider ──
-  const wrap   = document.getElementById('compareWrap');
-  const after  = document.getElementById('afterImg');
-  const divider = document.getElementById('divider');
-  const handle  = document.getElementById('handle');
-  let pct = 50;
-  let dragging = false;
+  function initSlider(wrapId, dividerId, handleId, afterId) {
+    const wrap    = document.getElementById(wrapId);
+    const divider = document.getElementById(dividerId);
+    const handle  = document.getElementById(handleId);
+    const after   = document.getElementById(afterId);
+    let dragging  = false;
 
-  function setDivider(x) {
-    const rect = wrap.getBoundingClientRect();
-    pct = Math.max(5, Math.min(95, ((x - rect.left) / rect.width) * 100));
-    const p = pct.toFixed(2);
-    divider.style.left = p + '%';
-    handle.style.left  = p + '%';
-    after.style.clipPath = `inset(0 0 0 ${pct.toFixed(2)}%)`;
+    function set(x) {
+      const rect = wrap.getBoundingClientRect();
+      const pct  = Math.max(5, Math.min(95, ((x - rect.left) / rect.width) * 100));
+      const p    = pct.toFixed(2);
+      divider.style.left   = p + '%';
+      handle.style.left    = p + '%';
+      after.style.clipPath = `inset(0 0 0 ${p}%)`;
+    }
+
+    // init at 50%
+    divider.style.left   = '50%';
+    handle.style.left    = '50%';
+    after.style.clipPath = 'inset(0 0 0 50%)';
+
+    wrap.addEventListener('mousedown',  e => { dragging = true;  set(e.clientX); });
+    window.addEventListener('mousemove',e => { if (dragging) set(e.clientX); });
+    window.addEventListener('mouseup',  () => { dragging = false; });
+    wrap.addEventListener('touchstart', e => { dragging = true;  set(e.touches[0].clientX); }, { passive: true });
+    window.addEventListener('touchmove',e => { if (dragging) set(e.touches[0].clientX); }, { passive: true });
+    window.addEventListener('touchend', () => { dragging = false; });
   }
 
-  // initialise at 50%
-  pct = 50;
-  divider.style.left = '50%';
-  handle.style.left  = '50%';
-  after.style.clipPath = 'inset(0 0 0 50%)';
+  initSlider('compareWrap1','divider1','handle1','afterImg1');
+  initSlider('compareWrap2','divider2','handle2','afterImg2');
 
-  wrap.addEventListener('mousedown', e => { dragging = true; setDivider(e.clientX); });
-  window.addEventListener('mousemove', e => { if (dragging) setDivider(e.clientX); });
-  window.addEventListener('mouseup',   () => { dragging = false; });
+  // ── Dither an image and set it as the after img src ──
+  const bayer = [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+  const toneColors = ['#0d0d0d','#2b2b2b','#555555','#808080','#aaaaaa','#d4d4d4','#f5f5f5'];
 
-  wrap.addEventListener('touchstart', e => { dragging = true; setDivider(e.touches[0].clientX); }, { passive: true });
-  window.addEventListener('touchmove', e => { if (dragging) setDivider(e.touches[0].clientX); }, { passive: true });
-  window.addEventListener('touchend',  () => { dragging = false; });
-
-  // ── dither the "after" image on canvas to make it look processed ──
-  // We render the dithered version of the same hero.jpg into a canvas
-  // and use it as the data URL for the after image.
-  (function buildDithered() {
+  function buildDithered(src, targetId) {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.onload = function() {
       const COLS = 90;
-      const aspect = img.naturalWidth / img.naturalHeight;
-      const rows   = Math.round(COLS / aspect);
-      const cellW  = img.naturalWidth  / COLS;
-      const cellH  = img.naturalHeight / rows;
+      const rows = Math.round(COLS / (img.naturalWidth / img.naturalHeight));
+      const cellW = img.naturalWidth  / COLS;
+      const cellH = img.naturalHeight / rows;
 
-      // sample source
-      const src = document.createElement('canvas');
-      src.width  = img.naturalWidth;
-      src.height = img.naturalHeight;
-      const sctx = src.getContext('2d');
-      sctx.drawImage(img, 0, 0);
-      const px = sctx.getImageData(0, 0, src.width, src.height).data;
+      const s = document.createElement('canvas');
+      s.width = img.naturalWidth; s.height = img.naturalHeight;
+      const sc = s.getContext('2d');
+      sc.drawImage(img, 0, 0);
+      const px = sc.getImageData(0, 0, s.width, s.height).data;
 
-      // output canvas at 2× for crisp look
       const scale = 2;
-      const outW  = img.naturalWidth  * scale;
-      const outH  = img.naturalHeight * scale;
-      const out   = document.createElement('canvas');
-      out.width  = outW;
-      out.height = outH;
-      const octx = out.getContext('2d');
-      octx.fillStyle = '#0a0a0a';
-      octx.fillRect(0, 0, outW, outH);
-
-      // Bayer 4×4 ordered dither matrix
-      const bayer = [
-         0,  8,  2, 10,
-        12,  4, 14,  6,
-         3, 11,  1,  9,
-        15,  7, 13,  5
-      ];
-
-      const TONES = 7;
-      const toneColors = ['#0d0d0d','#2b2b2b','#555555','#808080','#aaaaaa','#d4d4d4','#f5f5f5'];
+      const out = document.createElement('canvas');
+      out.width  = img.naturalWidth  * scale;
+      out.height = img.naturalHeight * scale;
+      const oc = out.getContext('2d');
+      oc.fillStyle = '#0a0a0a';
+      oc.fillRect(0, 0, out.width, out.height);
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < COLS; col++) {
-          // sample avg brightness of this cell
           let sum = 0, count = 0;
-          const x0 = Math.floor(col * cellW);
-          const y0 = Math.floor(row * cellH);
-          const x1 = Math.min(Math.floor((col+1) * cellW), img.naturalWidth - 1);
-          const y1 = Math.min(Math.floor((row+1) * cellH), img.naturalHeight - 1);
-          for (let y = y0; y < y1; y++) {
-            for (let x = x0; x < x1; x++) {
-              const i = (y * img.naturalWidth + x) * 4;
-              sum += 0.299*px[i] + 0.587*px[i+1] + 0.114*px[i+2];
-              count++;
-            }
+          const x0 = Math.floor(col * cellW), y0 = Math.floor(row * cellH);
+          const x1 = Math.min(Math.floor((col+1)*cellW), img.naturalWidth-1);
+          const y1 = Math.min(Math.floor((row+1)*cellH), img.naturalHeight-1);
+          for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+            const i = (y * img.naturalWidth + x) * 4;
+            sum += 0.299*px[i] + 0.587*px[i+1] + 0.114*px[i+2]; count++;
           }
           let lum = count ? sum / count : 0;
-
-          // bayer threshold
-          const bi = (row % 4) * 4 + (col % 4);
-          const threshold = (bayer[bi] / 16) * 255;
-          lum = lum > threshold ? Math.min(255, lum + 20) : Math.max(0, lum - 20);
-
-          // map to tone level
-          const toneIdx = Math.round((lum / 255) * (TONES - 1));
-          const sc = (lum / 255) * 0.75 + 0.15; // radius scale by brightness
-
-          const cx = (col + 0.5) * cellW * scale;
-          const cy = (row + 0.5) * cellH * scale;
-          const cellSize = Math.min(cellW, cellH) * scale;
-          const r = (cellSize / 2) * sc * 0.9;
-
+          const bi = (row%4)*4 + (col%4);
+          lum = lum > (bayer[bi]/16)*255 ? Math.min(255,lum+20) : Math.max(0,lum-20);
+          const toneIdx = Math.round((lum/255)*6);
+          const r = (Math.min(cellW,cellH)*scale/2) * ((lum/255)*0.75+0.15) * 0.9;
           if (r < 0.4) continue;
-
-          octx.beginPath();
-          octx.arc(cx, cy, r, 0, Math.PI * 2);
-          octx.fillStyle = toneColors[toneIdx];
-          octx.fill();
+          oc.beginPath();
+          oc.arc((col+0.5)*cellW*scale, (row+0.5)*cellH*scale, r, 0, Math.PI*2);
+          oc.fillStyle = toneColors[toneIdx];
+          oc.fill();
         }
       }
-
-      after.src = out.toDataURL('image/png');
+      document.getElementById(targetId).src = out.toDataURL('image/png');
     };
-    img.src = 'cursor.png';
-  })();
+    img.src = src;
+  }
+
+  buildDithered('cursor.png', 'afterImg1');
+  setTimeout(() => buildDithered('rocket.jpg', 'afterImg2'), 200);
 </script>
 
 </body>
