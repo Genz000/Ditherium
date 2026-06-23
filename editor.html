@@ -198,7 +198,7 @@
     </div>
 
     <div class="panel open" id="p-baseshape">
-      <div class="panel-header" onclick="togglePanel('p-baseshape')"><span>Base Shape</span><span class="arrow">▶</span></div>
+      <div class="panel-header" onclick="togglePanel('p-baseshape')"><span>Shape</span><span class="arrow">▶</span></div>
       <div class="panel-body">
         <select id="baseShapeSelect" onchange="setBaseShape(this.value)">
           <option value="circle">● Circle</option>
@@ -212,6 +212,8 @@
           <div class="slot-preview" id="customShapePreview">+</div>
           <div class="slot-label" id="customShapeLabel">Upload custom SVG</div>
         </div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-top:4px">Override per tonal level with a custom SVG.</p>
+        <div class="svg-slots" id="svgSlots"></div>
       </div>
     </div>
 
@@ -279,13 +281,6 @@
       </div>
     </div>
 
-    <div class="panel open" id="p-svgs">
-      <div class="panel-header" onclick="togglePanel('p-svgs')"><span>Shape SVGs</span><span class="arrow">▶</span></div>
-      <div class="panel-body">
-        <p style="font-size:11px;color:var(--muted);line-height:1.6">Upload one SVG per tonal level. If empty, uses circles.</p>
-        <div class="svg-slots" id="svgSlots"></div>
-      </div>
-    </div>
 
 
   </div>
