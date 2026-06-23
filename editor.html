@@ -62,10 +62,6 @@
   .svg-slot .slot-label { font-size: 11px; color: var(--muted); flex: 1; }
   .svg-slot .slot-color { width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--border2); cursor: pointer; flex-shrink: 0; position: relative; }
   .svg-slot .slot-color input[type=color] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; padding: 0; border: none; }
-  .shade-bar { display: flex; gap: 3px; align-items: stretch; }
-  .shade-swatch { flex: 1; height: 28px; border-radius: 3px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s, transform 0.1s; }
-  .shade-swatch.active { border-color: var(--accent); transform: scaleY(1.15); }
-  .shade-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin-top: 4px; letter-spacing: 0.04em; }
   .canvas-area { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 2rem; gap: 1.5rem; background: #080808; overflow: auto; }
   .canvas-area .empty-state { margin: auto; }
   .zoom-group { display: flex; align-items: center; gap: 4px; }
@@ -242,10 +238,7 @@
     <div class="panel open" id="p-shading">
       <div class="panel-header" onclick="togglePanel('p-shading')"><span>Tone Mapping</span><span class="arrow">▶</span></div>
       <div class="panel-body">
-        <label>7 Highlight States — Shadow → Highlight</label>
-        <div class="shade-bar" id="shadeBar"></div>
-        <div class="shade-labels"><span>Shadow</span><span>Midtone</span><span>Highlight</span></div>
-        <div class="row" style="margin-top:4px">
+        <div class="row">
           <label>Threshold</label>
           <input type="range" id="threshSlider" min="0" max="255" value="128" oninput="updateSlider('thresh',this.value)">
           <span class="val" id="threshVal">128</span>
@@ -629,19 +622,6 @@ function setRotationFree(deg) {
 function updateBg(){ const v=document.getElementById('bgColor').value; state.bgColor=v; document.getElementById('bgHex').value=v; pushHistory(); render(); }
 function syncBgHex(){ const v=document.getElementById('bgHex').value.trim(); if(/^#[0-9a-fA-F]{6}$/.test(v)){ state.bgColor=v; document.getElementById('bgColor').value=v; pushHistory(); render(); } }
 
-function buildShadeBar() {
-  const bar = document.getElementById('shadeBar');
-  bar.innerHTML = '';
-  SHADE_COLORS.forEach((c,i) => {
-    const s = document.createElement('div');
-    s.className = 'shade-swatch' + (i===state.activeTone?' active':'');
-    s.style.background = c;
-    s.onclick = () => { state.activeTone=i; document.querySelectorAll('.shade-swatch').forEach((el,j)=>el.classList.toggle('active',j===i)); };
-    s.title = ['Shadow','Dark Shadow','Mid Shadow','Midtone','Mid Highlight','Light Highlight','Highlight'][i];
-    bar.appendChild(s);
-  });
-}
-
 function buildSvgSlots() {
   const container = document.getElementById('svgSlots');
   container.innerHTML = '';
@@ -904,7 +884,6 @@ document.addEventListener('drop',(e)=>{
 });
 document.getElementById('exportModal').addEventListener('click',function(e){if(e.target===this)closeExportModal();});
 
-buildShadeBar();
 buildSvgSlots();
 </script>
 </body>
