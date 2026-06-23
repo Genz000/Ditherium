@@ -429,7 +429,11 @@
           const y1 = Math.min(Math.floor((row+1)*cellH), img.naturalHeight-1);
           for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
             const i = (y*img.naturalWidth+x)*4;
-            sum += 0.299*px[i]+0.587*px[i+1]+0.114*px[i+2]; count++;
+            const a = px[i+3];
+            // treat transparent OR near-white background pixels as dark (luminance 0)
+            const isBg = a < 16 || (px[i] > 244 && px[i+1] > 244 && px[i+2] > 244);
+            sum += isBg ? 0 : (0.299*px[i]+0.587*px[i+1]+0.114*px[i+2]);
+            count++;
           }
           lums.push(count ? sum/count : 0);
         }
