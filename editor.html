@@ -503,7 +503,7 @@ function updateSlider(key, val) {
   else if(key==='contrast'){ state.contrast=n; document.getElementById('contrastVal').textContent=n.toFixed(2); }
   else if(key==='scale'){ state.scale=n; document.getElementById('scaleVal').textContent=n.toFixed(2); }
   else if(key==='toneScale'){ state.toneScale=n; document.getElementById('toneScaleVal').textContent=n.toFixed(2); }
-  else if(key==='levels'){ state.levels=parseInt(val); document.getElementById('levelsVal').textContent=val; }
+  else if(key==='levels'){ state.levels=parseInt(val); document.getElementById('levelsVal').textContent=val; buildSvgSlots(); }
   pushHistory();
   render();
 }
@@ -622,11 +622,24 @@ function setRotationFree(deg) {
 function updateBg(){ const v=document.getElementById('bgColor').value; state.bgColor=v; document.getElementById('bgHex').value=v; pushHistory(); render(); }
 function syncBgHex(){ const v=document.getElementById('bgHex').value.trim(); if(/^#[0-9a-fA-F]{6}$/.test(v)){ state.bgColor=v; document.getElementById('bgColor').value=v; pushHistory(); render(); } }
 
+function labelsForLevels(n) {
+  // pick descriptive names sized to the current level count
+  const tables = {
+    2: ['Shadow','Highlight'],
+    3: ['Shadow','Midtone','Highlight'],
+    4: ['Shadow','Mid Shd.','Mid Hlt.','Highlight'],
+    5: ['Shadow','Mid Shd.','Midtone','Mid Hlt.','Highlight'],
+    6: ['Shadow','Dark Shd.','Mid Shd.','Mid Hlt.','Light Hlt.','Highlight'],
+    7: ['Shadow','Dark Shd.','Mid Shd.','Midtone','Mid Hlt.','Light Hlt.','Highlight'],
+  };
+  return tables[n] || tables[7];
+}
+
 function buildSvgSlots() {
   const container = document.getElementById('svgSlots');
   container.innerHTML = '';
-  const names = ['Shadow','Dark Shd.','Mid Shd.','Midtone','Mid Hlt.','Light Hlt.','Highlight'];
-  for(let i=0;i<7;i++){
+  const names = labelsForLevels(state.levels);
+  for(let i=0;i<state.levels;i++){
     const slot = document.createElement('div');
     slot.className = 'svg-slot';
     const inp = document.createElement('input');
