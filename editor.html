@@ -62,7 +62,8 @@
   .svg-slot .slot-label { font-size: 11px; color: var(--muted); flex: 1; }
   .svg-slot .slot-color { width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--border2); cursor: pointer; flex-shrink: 0; position: relative; }
   .svg-slot .slot-color input[type=color] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; padding: 0; border: none; }
-  .canvas-area { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 2rem; gap: 1.5rem; background: #080808; overflow: auto; }
+  .canvas-area { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 2rem; gap: 1.5rem; background: #080808; overflow: auto; position: relative; }
+  .zoom-overlay { position: absolute; bottom: 1rem; right: 1rem; display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; z-index: 10; }
   .canvas-area .empty-state { margin: auto; }
   .zoom-group { display: flex; align-items: center; gap: 4px; }
   .zoom-val { font-size: 11px; color: var(--accent); min-width: 38px; text-align: center; font-weight: 500; letter-spacing: 0.04em; }
@@ -136,24 +137,6 @@
       <button class="undo-btn" id="undoBtn" onclick="undo()" title="Undo (Ctrl+Z)" disabled>↩</button>
       <button class="undo-btn" id="redoBtn" onclick="redo()" title="Redo (Ctrl+Y)" disabled>↪</button>
     </div>
-    <div class="zoom-group">
-      <span style="font-size:11px;color:var(--muted);letter-spacing:0.06em">Zoom</span>
-      <button class="snap-btn" onclick="setZoom(zoomLevel - 0.25)" title="Zoom out (Ctrl+−)">−</button>
-      <span class="zoom-val" id="zoomVal">100%</span>
-      <button class="snap-btn" onclick="setZoom(zoomLevel + 0.25)" title="Zoom in (Ctrl+=)">+</button>
-      <button class="snap-btn" onclick="setZoom(1)" title="Reset zoom">1:1</button>
-    </div>
-    <div class="rot-group">
-      <span style="font-size:11px;color:var(--muted);letter-spacing:0.06em;white-space:nowrap">Rotate</span>
-      <input type="range" id="rotSlider" min="-180" max="180" step="1" value="9" oninput="setRotationFree(this.value)" style="width:110px">
-      <span class="val" id="rotVal" style="min-width:42px">9°</span>
-      <div class="snap-btns">
-        <button class="snap-btn" onclick="setRotationFree(0)">0°</button>
-        <button class="snap-btn" onclick="setRotationFree(45)">45°</button>
-        <button class="snap-btn" onclick="setRotationFree(90)">90°</button>
-        <button class="snap-btn" onclick="setRotationFree(180)">180°</button>
-      </div>
-    </div>
     <button class="btn btn-accent" onclick="openExportModal()">↓ Export</button>
   </div>
 </header>
@@ -173,17 +156,6 @@
           <input type="file" accept="image/*,video/*" onchange="handleFile(event)">
           <canvas id="thumbCanvas"></canvas>
           <span class="replace-badge">Replace</span>
-        </div>
-        <div>
-          <label style="margin-bottom:8px">Crop Ratio</label>
-          <div class="ratio-btns" id="ratioBtns">
-            <button class="ratio-btn" data-ratio="free" onclick="setCropRatio('free')">Free</button>
-            <button class="ratio-btn active" data-ratio="1:1" onclick="setCropRatio('1:1')">1:1</button>
-            <button class="ratio-btn" data-ratio="4:3" onclick="setCropRatio('4:3')">4:3</button>
-            <button class="ratio-btn" data-ratio="3:4" onclick="setCropRatio('3:4')">3:4</button>
-            <button class="ratio-btn" data-ratio="16:9" onclick="setCropRatio('16:9')">16:9</button>
-            <button class="ratio-btn" data-ratio="9:16" onclick="setCropRatio('9:16')">9:16</button>
-          </div>
         </div>
       </div>
     </div>
@@ -297,6 +269,14 @@
   </div>
 
   <div class="canvas-area">
+    <div class="zoom-overlay" id="zoomOverlay">
+      <div class="zoom-group">
+        <button class="snap-btn" onclick="setZoom(zoomLevel - 0.25)" title="Zoom out (Ctrl+−)">−</button>
+        <span class="zoom-val" id="zoomVal">100%</span>
+        <button class="snap-btn" onclick="setZoom(zoomLevel + 0.25)" title="Zoom in (Ctrl+=)">+</button>
+        <button class="snap-btn" onclick="setZoom(1)" title="Reset zoom">1:1</button>
+      </div>
+    </div>
     <div class="empty-state" id="emptyState">
       <div class="empty-icon">⬡</div>
       <div>Drop an image or video to begin<br><span style="font-size:10px;opacity:0.5">supports jpg · png · gif · mp4 · webm</span></div>
@@ -372,7 +352,7 @@ let state = {
   baseShapeSvgData: null, baseShapeImgs: new Array(7).fill(null),
   bgColor: '#0a0a0a', threshold: 128, contrast: 1.0,
   scale: 0.85, toneScale: 1.0, invert: false, invertScale: false,
-  rotation: 9, ditherMode: 'ordered', levels: 7, activeTone: 3,
+  rotation: 0, ditherMode: 'ordered', levels: 7, activeTone: 3,
   svgData: new Array(7).fill(null),
   svgColors: ['#0d0d0d','#2b2b2b','#555555','#808080','#aaaaaa','#d4d4d4','#f5f5f5'],
   svgImages: new Array(7).fill(null),
@@ -448,8 +428,6 @@ function syncUIFromState() {
   document.getElementById('toneScaleVal').textContent = state.toneScale.toFixed(2);
   document.getElementById('levelsSlider').value = state.levels;
   document.getElementById('levelsVal').textContent = state.levels;
-  document.getElementById('rotSlider').value = state.rotation;
-  document.getElementById('rotVal').textContent = state.rotation + '°';
   document.getElementById('bgColor').value = state.bgColor;
   document.getElementById('bgHex').value = state.bgColor;
   document.getElementById('ditherMode').value = state.ditherMode;
@@ -614,8 +592,6 @@ function setZoom(z) {
 function setRotationFree(deg) {
   deg = parseFloat(deg);
   state.rotation = deg;
-  document.getElementById('rotSlider').value = deg;
-  document.getElementById('rotVal').textContent = deg + '°';
   pushHistory();
   render();
 }
@@ -718,6 +694,7 @@ function showCanvases() {
   document.getElementById('emptyState').style.display='none';
   document.getElementById('canvasPair').style.display='flex';
   document.getElementById('toolbar').style.display='flex';
+  document.getElementById('zoomOverlay').style.display='block';
   document.getElementById('uploadZone').style.display='none';
   document.getElementById('sourceThumb').style.display='block';
   if (historyIdx < 0) pushHistory();
