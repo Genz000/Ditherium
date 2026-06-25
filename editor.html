@@ -63,7 +63,10 @@
   .svg-slot .slot-color { width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--border2); cursor: pointer; flex-shrink: 0; position: relative; }
   .svg-slot .slot-color input[type=color] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; padding: 0; border: none; }
   .canvas-area { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 2rem; gap: 1.5rem; background: #080808; overflow: auto; position: relative; }
-  .zoom-overlay { position: absolute; bottom: 1rem; right: 1rem; display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; z-index: 10; }
+  .zoom-overlay { position: absolute; bottom: 1rem; right: 1rem; display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; z-index: 10; align-items: center; gap: 8px; }
+  .ws-sep { width: 1px; height: 16px; background: var(--border2); flex-shrink: 0; }
+  .zoom-overlay select { padding: 3px 6px; font-size: 11px; border-color: transparent; background: transparent; color: var(--accent); }
+  .zoom-overlay select:focus { border-color: var(--accent2); background: var(--track); }
   .canvas-area .empty-state { margin: auto; }
   .zoom-group { display: flex; align-items: center; gap: 4px; }
   .zoom-val { font-size: 11px; color: var(--accent); min-width: 38px; text-align: center; font-weight: 500; letter-spacing: 0.04em; }
@@ -270,6 +273,16 @@
 
   <div class="canvas-area">
     <div class="zoom-overlay" id="zoomOverlay">
+      <select id="ratioSelect" onchange="setCropRatio(this.value)" title="Crop Ratio">
+        <option value="original">Original</option>
+        <option value="free">Free</option>
+        <option value="1:1" selected>1:1</option>
+        <option value="4:3">4:3</option>
+        <option value="3:4">3:4</option>
+        <option value="16:9">16:9</option>
+        <option value="9:16">9:16</option>
+      </select>
+      <div class="ws-sep"></div>
       <div class="zoom-group">
         <button class="snap-btn" onclick="setZoom(zoomLevel - 0.25)" title="Zoom out (Ctrl+−)">−</button>
         <span class="zoom-val" id="zoomVal">100%</span>
@@ -431,7 +444,7 @@ function syncUIFromState() {
   document.getElementById('bgColor').value = state.bgColor;
   document.getElementById('bgHex').value = state.bgColor;
   document.getElementById('ditherMode').value = state.ditherMode;
-  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('active', b.dataset.ratio === state.cropRatio));
+  const ratioSel = document.getElementById('ratioSelect'); if (ratioSel) ratioSel.value = state.cropRatio;
   document.getElementById('baseShapeSelect').value = state.baseShape;
   document.getElementById('linkToggle').classList.toggle('on', state.linkRowsCols);
   document.getElementById('invertToggle').classList.toggle('on', state.invert);
@@ -563,13 +576,14 @@ function buildShapeElement(shape, cx, cy, r, rotation, color) {
 
 function setCropRatio(ratio) {
   state.cropRatio = ratio;
-  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('active', b.dataset.ratio === ratio));
+  const sel = document.getElementById('ratioSelect');
+  if (sel) sel.value = ratio;
   pushHistory();
   if (state.sourceImage) loadImageToCanvas();
   else if (state.sourceVideo) {}
 }
 function computeCrop(srcW, srcH) {
-  if (state.cropRatio === 'free') return { sx: 0, sy: 0, w: srcW, h: srcH };
+  if (state.cropRatio === 'free' || state.cropRatio === 'original') return { sx: 0, sy: 0, w: srcW, h: srcH };
   const [rw, rh] = state.cropRatio.split(':').map(Number);
   const targetAspect = rw / rh;
   const srcAspect = srcW / srcH;
@@ -694,7 +708,7 @@ function showCanvases() {
   document.getElementById('emptyState').style.display='none';
   document.getElementById('canvasPair').style.display='flex';
   document.getElementById('toolbar').style.display='flex';
-  document.getElementById('zoomOverlay').style.display='block';
+  document.getElementById('zoomOverlay').style.display='flex';
   document.getElementById('uploadZone').style.display='none';
   document.getElementById('sourceThumb').style.display='block';
   if (historyIdx < 0) pushHistory();
