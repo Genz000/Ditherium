@@ -318,6 +318,8 @@
           <button class="fmt-btn" data-fmt="svg" onclick="setFmt('svg')">SVG</button>
           <button class="fmt-btn" data-fmt="jpeg" onclick="setFmt('jpeg')">JPEG</button>
           <button class="fmt-btn" data-fmt="webp" onclick="setFmt('webp')">WebP</button>
+          <button class="fmt-btn fmt-video" data-fmt="gif" onclick="setFmt('gif')" style="display:none">GIF</button>
+          <button class="fmt-btn fmt-video" data-fmt="webm" onclick="setFmt('webm')" style="display:none">WebM</button>
         </div>
       </div>
       <div class="modal-row quality-row" id="qualityRow">
@@ -351,7 +353,7 @@
     </div>
     <div class="modal-foot">
       <button class="btn" onclick="closeExportModal()">Cancel</button>
-      <button class="btn btn-accent" onclick="doExport()">↓ Download</button>
+      <button class="btn btn-accent" id="exportBtn" onclick="doExport()">↓ Download</button>
     </div>
   </div>
 </div>
@@ -820,7 +822,14 @@ function drawDithered(canvas, displayW, displayH) {
 }
 
 /* Export */
-function openExportModal(){ document.getElementById('exportModal').classList.add('open'); updateExportInfo(); }
+function openExportModal(){
+  const isVid=!!state.sourceVideo;
+  document.querySelectorAll('.fmt-video').forEach(b=>b.style.display=isVid?'':'none');
+  if(isVid && !['gif','webm'].includes(state.exportFmt)) setFmt('gif');
+  else if(!isVid && ['gif','webm'].includes(state.exportFmt)) setFmt('png');
+  document.getElementById('exportModal').classList.add('open');
+  updateExportInfo();
+}
 function closeExportModal(){ document.getElementById('exportModal').classList.remove('open'); }
 
 function setFmt(fmt){
@@ -849,9 +858,13 @@ function onQuality(v){
 }
 
 function updateExportInfo(){
-  const fmt=state.exportFmt.toUpperCase();
-  const q=(state.exportFmt==='jpeg'||state.exportFmt==='webp')?` · Q${Math.round(state.exportQuality*100)}%`:' · lossless';
-  document.getElementById('exportInfo').textContent=`Output: ${state.exportW} × ${state.exportH} px · ${fmt}${q}`;
+  const f=state.exportFmt;
+  let extra;
+  if(f==='gif') extra=' · animated · ~12 fps';
+  else if(f==='webm') extra=' · animated video';
+  else if(f==='jpeg'||f==='webp') extra=` · Q${Math.round(state.exportQuality*100)}%`;
+  else extra=' · lossless';
+  document.getElementById('exportInfo').textContent=`Output: ${state.exportW} × ${state.exportH} px · ${f.toUpperCase()}${extra}`;
 }
 
 function buildSvgString(w,h){
@@ -876,10 +889,13 @@ function buildSvgString(w,h){
 }
 
 function doExport(){
-  const w=state.exportW, h=state.exportH, fmt=state.exportFmt;
+  const fmt=state.exportFmt;
+  if(fmt==='gif')  return exportAnimated('gif');
+  if(fmt==='webm') return exportAnimated('webm');
+  const w=state.exportW, h=state.exportH;
   if(fmt==='svg'){
     const blob=new Blob([buildSvgString(w,h)],{type:'image/svg+xml'});
-    const a=document.createElement('a'); a.download='dithered.svg'; a.href=URL.createObjectURL(blob); a.click();
+    downloadBlob(blob,'dithered.svg');
     closeExportModal(); return;
   }
   const off=document.createElement('canvas');
@@ -889,6 +905,118 @@ function doExport(){
   const q=(fmt==='jpeg'||fmt==='webp')?state.exportQuality:undefined;
   const a=document.createElement('a'); a.download=`dithered.${ext}`; a.href=off.toDataURL(mime,q); a.click();
   closeExportModal();
+}
+
+function downloadBlob(blob,name){
+  const a=document.createElement('a'); a.download=name; a.href=URL.createObjectURL(blob); a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
+function setExporting(on,label){
+  const btn=document.getElementById('exportBtn');
+  btn.disabled=on;
+  btn.textContent=on?(label||'Encoding…'):'↓ Download';
+  btn.style.opacity=on?'0.6':'1';
+}
+
+// Render one video frame (cropped) into an offscreen canvas using the live pipeline
+function renderExportFrame(off,w,h){
+  const v=state.sourceVideo;
+  const c=computeCrop(v.videoWidth,v.videoHeight);
+  srcCanvas.width=c.w; srcCanvas.height=c.h;
+  srcCtx.drawImage(v,c.sx,c.sy,c.w,c.h,0,0,c.w,c.h);
+  drawDithered(off,w,h);
+}
+function seekVideo(v,t){
+  return new Promise(res=>{ v.addEventListener('seeked',res,{once:true}); v.currentTime=t; });
+}
+
+// ── GIF library (loaded on demand from CDN) ──
+const GIF_JS_URL='https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js';
+const GIF_WORKER_URL='https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js';
+let _gifLibPromise=null;
+function ensureGifLib(){
+  if(window.GIF) return Promise.resolve();
+  if(_gifLibPromise) return _gifLibPromise;
+  _gifLibPromise=new Promise((res,rej)=>{
+    const s=document.createElement('script'); s.src=GIF_JS_URL;
+    s.onload=res; s.onerror=()=>rej(new Error('Could not load GIF library (offline?)'));
+    document.head.appendChild(s);
+  });
+  return _gifLibPromise;
+}
+async function gifWorkerUrl(){
+  const resp=await fetch(GIF_WORKER_URL);
+  const txt=await resp.text();
+  return URL.createObjectURL(new Blob([txt],{type:'application/javascript'}));
+}
+
+async function exportAnimated(kind){
+  const v=state.sourceVideo;
+  if(!v){ alert('Animated export needs a video source.'); return; }
+  if(animFrame){ cancelAnimationFrame(animFrame); animFrame=null; }
+  const wasLoop=v.loop, wasTime=v.currentTime;
+  const w=state.exportW, h=state.exportH;
+  const off=document.createElement('canvas'); off.width=w; off.height=h;
+  setExporting(true, kind==='gif'?'Building GIF…':'Recording…');
+  try {
+    if(kind==='gif')  await encodeGif(v,off,w,h);
+    else              await encodeWebm(v,off,w,h);
+  } catch(err){
+    alert('Export failed: '+err.message);
+  } finally {
+    setExporting(false);
+    v.loop=wasLoop; v.currentTime=wasTime; v.play().catch(()=>{}); animateVideo();
+    closeExportModal();
+  }
+}
+
+async function encodeGif(v,off,w,h){
+  await ensureGifLib();
+  const workerScript=await gifWorkerUrl();
+  const fps=12, total=v.duration||3;
+  const frames=Math.max(2, Math.min(Math.round(total*fps), 300));
+  const delay=Math.round(1000/fps);
+  v.loop=false; v.pause();
+  const gif=new GIF({workers:2, quality:10, width:w, height:h, workerScript, background:state.bgColor});
+  for(let i=0;i<frames;i++){
+    await seekVideo(v,(i/frames)*total);
+    renderExportFrame(off,w,h);
+    gif.addFrame(off,{copy:true,delay});
+    setExporting(true,`Building GIF… ${Math.round((i+1)/frames*100)}%`);
+  }
+  const blob=await new Promise((res,rej)=>{ gif.on('finished',res); gif.on('abort',()=>rej(new Error('aborted'))); gif.render(); });
+  downloadBlob(blob,'dithered.gif');
+}
+
+async function encodeWebm(v,off,w,h){
+  if(typeof MediaRecorder==='undefined' || !off.captureStream)
+    throw new Error('WebM recording not supported in this browser');
+  let mime='video/webm';
+  if(MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) mime='video/webm;codecs=vp9';
+  else if(MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) mime='video/webm;codecs=vp8';
+  const stream=off.captureStream(30);
+  const rec=new MediaRecorder(stream,{mimeType:mime, videoBitsPerSecond:12000000});
+  const chunks=[]; rec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
+  const stopped=new Promise(res=>{ rec.onstop=res; });
+  v.loop=false; v.pause();
+  await seekVideo(v,0);
+  rec.start();
+  await v.play();
+  await new Promise(res=>{
+    function step(){
+      renderExportFrame(off,w,h);
+      const pct=Math.round((v.currentTime/(v.duration||1))*100);
+      setExporting(true,`Recording… ${Math.min(99,pct)}%`);
+      if(v.ended || v.currentTime>=(v.duration-0.05)){ rec.stop(); res(); return; }
+      animFrame=requestAnimationFrame(step);
+    }
+    step();
+  });
+  await stopped;
+  animFrame=null;
+  const blob=new Blob(chunks,{type:'video/webm'});
+  downloadBlob(blob,'dithered.webm');
 }
 
 document.addEventListener('dragover',(e)=>{e.preventDefault();document.getElementById('dropOverlay').classList.add('active');});
