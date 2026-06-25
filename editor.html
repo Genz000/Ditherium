@@ -66,9 +66,15 @@
   .canvas-area .empty-state { margin: auto; }
   .zoom-group { display: flex; align-items: center; gap: 4px; }
   .zoom-val { font-size: 11px; color: var(--accent); min-width: 38px; text-align: center; font-weight: 500; letter-spacing: 0.04em; }
-  .canvas-pair { display: flex; gap: 1.5rem; align-items: flex-start; }
+  .canvas-pair { display: flex; gap: 1.5rem; align-items: center; justify-content: center; }
   .canvas-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .canvas-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  /* Source thumbnail (original preview) */
+  .source-thumb { position: relative; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; cursor: pointer; background: #000; transition: border-color 0.2s; }
+  .source-thumb:hover { border-color: var(--accent2); }
+  .source-thumb canvas { display: block; width: 100%; height: auto; max-height: 150px; object-fit: contain; }
+  .source-thumb input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .source-thumb .replace-badge { position: absolute; bottom: 6px; right: 6px; background: rgba(10,10,10,0.82); color: var(--accent); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); pointer-events: none; }
   canvas { border: 1px solid var(--border); border-radius: 4px; display: block; }
   .drop-overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.85); display: none; align-items: center; justify-content: center; z-index: 100; font-family: 'Unbounded', sans-serif; font-size: 18px; letter-spacing: 0.08em; color: var(--accent); pointer-events: none; }
   .drop-overlay.active { display: flex; }
@@ -158,10 +164,15 @@
     <div class="panel open" id="p-upload">
       <div class="panel-header" onclick="togglePanel('p-upload')"><span>Source</span><span class="arrow">▶</span></div>
       <div class="panel-body">
-        <div class="upload-zone">
+        <div class="upload-zone" id="uploadZone">
           <input type="file" accept="image/*,video/*" onchange="handleFile(event)">
           <div class="icon">⬆</div>
           <p>Click or drop image / video</p>
+        </div>
+        <div class="source-thumb" id="sourceThumb" style="display:none">
+          <input type="file" accept="image/*,video/*" onchange="handleFile(event)">
+          <canvas id="thumbCanvas"></canvas>
+          <span class="replace-badge">Replace</span>
         </div>
         <div>
           <label style="margin-bottom:8px">Crop Ratio</label>
@@ -292,11 +303,6 @@
     </div>
     <div class="canvas-pair" id="canvasPair" style="display:none">
       <div class="canvas-wrap">
-        <div class="canvas-label">Original</div>
-        <canvas id="originalCanvas"></canvas>
-      </div>
-      <div class="canvas-wrap">
-        <div class="canvas-label">Dithered</div>
         <canvas id="ditheredCanvas"></canvas>
       </div>
     </div>
@@ -697,6 +703,7 @@ function renderFromVideoFrame() {
   srcCtx.drawImage(v,sx,sy,w,h,0,0,w,h);
   const dispW=Math.round(400*zoomLevel), dispH=Math.round(dispW*h/w);
   drawDithered(document.getElementById('ditheredCanvas'),dispW,dispH);
+  updateSourceThumb();
 }
 
 function loadImageToCanvas() {
@@ -711,6 +718,8 @@ function showCanvases() {
   document.getElementById('emptyState').style.display='none';
   document.getElementById('canvasPair').style.display='flex';
   document.getElementById('toolbar').style.display='flex';
+  document.getElementById('uploadZone').style.display='none';
+  document.getElementById('sourceThumb').style.display='block';
   if (historyIdx < 0) pushHistory();
 }
 
@@ -720,11 +729,18 @@ function render() {
     const srcW=srcCanvas.width, srcH=srcCanvas.height;
     if(!srcW) return;
     const disp=Math.round(400*zoomLevel), dispH=Math.round(disp*srcH/srcW);
-    const oc=document.getElementById('originalCanvas');
-    oc.width=disp; oc.height=dispH;
-    oc.getContext('2d').drawImage(srcCanvas,0,0,disp,dispH);
     drawDithered(document.getElementById('ditheredCanvas'),disp,dispH);
+    updateSourceThumb();
   }
+}
+
+function updateSourceThumb() {
+  const srcW=srcCanvas.width, srcH=srcCanvas.height;
+  if(!srcW) return;
+  const tc=document.getElementById('thumbCanvas');
+  const tw=240, th=Math.round(tw*srcH/srcW);
+  tc.width=tw; tc.height=th;
+  tc.getContext('2d').drawImage(srcCanvas,0,0,tw,th);
 }
 
 function computeQuantized(cols, rows) {
