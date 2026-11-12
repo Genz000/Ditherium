@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ditherium</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Unbounded:wght@300;400;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --surface: #141414; --surface2: #1e1e1e;
+    --border: #2a2a2a; --border2: #3a3a3a; --text: #f0ede8;
+    --muted: #888; --accent: #e8d5b0; --accent2: #c4a882;
+    --track: #252525; --thumb: #e8d5b0;
+  }
+  html, body { height: 100%; overflow: hidden; }
+  body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: var(--surface); gap: 16px; flex-wrap: wrap; flex-shrink: 0; }
+  .logo { font-family: 'Unbounded', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); white-space: nowrap; display: flex; align-items: center; gap: 10px; }
+  .logo span { color: var(--muted); font-weight: 300; }
+  .logo-icon { width: 32px; height: 32px; flex-shrink: 0; display: block; border-radius: 6px; }
+  .main { display: grid; grid-template-columns: clamp(240px, 28vw, 320px) 1fr; flex: 1; min-height: 0; overflow: hidden; }
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
+  @media (max-width: 640px) { .main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .sidebar { max-height: 45vh; } }
+  .panel { border-bottom: 1px solid var(--border); }
+  .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; cursor: pointer; background: var(--surface2); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); user-select: none; transition: color 0.15s; }
+  .panel-header:hover { color: var(--text); }
+  .panel-header .arrow { transition: transform 0.2s; font-size: 10px; }
+  .panel.open .arrow { transform: rotate(90deg); }
+  .panel-body { display: none; padding: 14px 16px; gap: 12px; flex-direction: column; }
+  .panel.open .panel-body { display: flex; }
+  label { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; display: block; margin-bottom: 5px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row label { margin-bottom: 0; min-width: 90px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; background: var(--track); border-radius: 2px; outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--thumb); cursor: pointer; border: 2px solid var(--bg); }
+  .val { font-size: 12px; color: var(--accent); min-width: 40px; text-align: right; font-weight: 500; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+  .toggle { width: 36px; height: 20px; background: var(--track); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; border: none; flex-shrink: 0; }
+  .toggle.on { background: var(--accent2); }
+  .toggle::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--text); top: 3px; left: 3px; transition: left 0.2s; }
+  .toggle.on::after { left: 19px; }
+  .ratio-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+  .ratio-btn { background: var(--track); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 9px; border-radius: 4px; cursor: pointer; transition: all 0.12s; letter-spacing: 0.04em; }
+  .ratio-btn:hover { border-color: var(--accent2); color: var(--text); }
+  .ratio-btn.active { background: var(--accent2); color: #1a1209; border-color: var(--accent2); }
+  #baseShapeSelect { width: 100%; }
+  .upload-zone { border: 1px dashed var(--border2); border-radius: 6px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
+  .upload-zone:hover { border-color: var(--accent2); background: rgba(232,213,176,0.03); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-zone p { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .upload-zone .icon { font-size: 22px; color: var(--muted); }
+  .color-input-wrap { display: flex; align-items: center; gap: 8px; }
+  input[type=color] { width: 32px; height: 32px; border-radius: 4px; border: 1px solid var(--border2); background: none; cursor: pointer; padding: 2px; }
+  .hex-input { background: var(--track); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; padding: 6px 8px; border-radius: 4px; width: 90px; outline: none; }
+  .hex-input:focus { border-color: var(--accent2); }
+  .svg-slots { display: flex; flex-direction: column; gap: 8px; }
+  .svg-slot { display: flex; align-items: center; gap: 8px; background: var(--track); border-radius: 4px; padding: 6px 10px; cursor: pointer; position: relative; transition: background 0.15s; }
+  .svg-slot:hover { background: var(--border); }
+  .svg-slot input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .svg-slot .slot-preview { width: 24px; height: 24px; border-radius: 3px; border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--muted); overflow: hidden; flex-shrink: 0; }
+  .svg-slot .slot-label { font-size: 11px; color: var(--muted); flex: 1; }
+  .svg-slot .slot-color { width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--border2); cursor: pointer; flex-shrink: 0; position: relative; }
+  .svg-slot .slot-color input[type=color] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; padding: 0; border: none; }
+  .canvas-area { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 2rem; gap: 1.5rem; background: #080808; overflow: auto; position: relative; }
+  .zoom-overlay { position: absolute; bottom: 1rem; right: 1rem; display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; z-index: 10; align-items: center; gap: 8px; }
+  .ws-sep { width: 1px; height: 16px; background: var(--border2); flex-shrink: 0; }
+  .zoom-overlay select { padding: 3px 6px; font-size: 11px; border-color: transparent; background: transparent; color: var(--accent); }
+  .zoom-overlay select:focus { border-color: var(--accent2); background: var(--track); }
+  .icon-btn { width: 26px !important; height: 26px !important; min-width: 26px !important; padding: 0 !important; display: flex !important; align-items: center; justify-content: center; flex-shrink: 0; }
+  .canvas-area .empty-state { margin: auto; }
+  .zoom-group { display: flex; align-items: center; gap: 4px; }
+  .zoom-val { font-size: 11px; color: var(--accent); min-width: 38px; text-align: center; font-weight: 500; letter-spacing: 0.04em; }
+  .canvas-pair { display: flex; gap: 1.5rem; align-items: center; justify-content: center; margin: auto; }
+  .canvas-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .canvas-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  /* Source thumbnail (original preview) */
+  .source-thumb { position: relative; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; cursor: pointer; background: #000; transition: border-color 0.2s; }
+  .source-thumb:hover { border-color: var(--accent2); }
+  .source-thumb canvas { display: block; width: 100%; height: auto; max-height: 150px; object-fit: contain; }
+  .source-thumb input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .source-thumb .replace-badge { position: absolute; bottom: 6px; right: 6px; background: rgba(10,10,10,0.82); color: var(--accent); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); pointer-events: none; }
+  canvas { border: 1px solid var(--border); border-radius: 4px; display: block; }
+  .drop-overlay { position: fixed; inset: 0; background: rgba(10,10,10,0.85); display: none; align-items: center; justify-content: center; z-index: 100; font-family: 'Unbounded', sans-serif; font-size: 18px; letter-spacing: 0.08em; color: var(--accent); pointer-events: none; }
+  .drop-overlay.active { display: flex; }
+  .btn { background: transparent; border: 1px solid var(--border2); color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; padding: 7px 14px; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .btn:hover { border-color: var(--accent2); background: rgba(232,213,176,0.06); }
+  .btn-accent { background: var(--accent); color: #1a1209; border-color: var(--accent); font-weight: 500; }
+  .btn-accent:hover { background: var(--thumb); border-color: var(--thumb); }
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .rot-group { display: flex; align-items: center; gap: 8px; }
+  .snap-btns { display: flex; gap: 3px; }
+  .snap-btn { background: var(--track); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+  .snap-btn:hover { border-color: var(--accent2); color: var(--text); }
+  select { background: var(--track); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; padding: 6px 8px; border-radius: 4px; outline: none; cursor: pointer; }
+  select:focus { border-color: var(--accent2); }
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); font-size: 12px; text-align: center; line-height: 1.8; }
+  .empty-icon { font-size: 48px; opacity: 0.2; margin-bottom: 8px; }
+  input[type=number] { background: var(--track); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; padding: 5px 8px; border-radius: 4px; width: 70px; outline: none; }
+  input[type=number]:focus { border-color: var(--accent2); }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* Export Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 200; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; width: 440px; max-width: 96vw; }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); font-family: 'Unbounded', sans-serif; font-size: 12px; letter-spacing: 0.1em; color: var(--accent); }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; padding: 0 2px; }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+  .modal-row { display: flex; align-items: flex-start; gap: 10px; }
+  .modal-row label { padding-top: 6px; }
+  .modal-row label { min-width: 88px; font-size: 11px; color: var(--muted); margin: 0; }
+  .modal-foot { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+  .fmt-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .fmt-btn { background: var(--track); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 12px; border-radius: 4px; cursor: pointer; transition: all 0.12s; letter-spacing: 0.05em; }
+  .fmt-btn:hover { border-color: var(--accent2); color: var(--text); }
+  .fmt-btn.active { background: var(--accent2); color: #1a1209; border-color: var(--accent2); }
+  .preset-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .preset-btn { background: var(--track); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 9px; border-radius: 3px; cursor: pointer; transition: all 0.12s; white-space: nowrap; }
+  .preset-btn:hover { border-color: var(--accent2); color: var(--text); }
+  .dim-inputs { display: flex; align-items: center; gap: 6px; }
+  .dim-sep { color: var(--muted); font-size: 14px; }
+  .export-info { font-size: 10px; color: var(--muted); line-height: 1.7; padding: 8px 10px; background: var(--track); border-radius: 4px; }
+  .quality-row { display: none; }
+  .undo-btns { display: flex; gap: 3px; }
+  .undo-btn { background: var(--track); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 13px; width: 30px; height: 28px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; line-height: 1; }
+  .undo-btn:hover:not(:disabled) { border-color: var(--accent2); color: var(--text); }
+  .undo-btn:disabled { opacity: 0.25; cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="drop-overlay" id="dropOverlay">DROP TO DITHER</div>
+
+<header>
+  <div class="logo"><img src="logo.png" class="logo-icon" alt="">DITHERIUM</div>
+  <div class="toolbar" id="toolbar" style="display:none">
+    <div class="undo-btns">
+      <button class="undo-btn" id="undoBtn" onclick="undo()" title="Undo (Ctrl+Z)" disabled>↩</button>
+      <button class="undo-btn" id="redoBtn" onclick="redo()" title="Redo (Ctrl+Y)" disabled>↪</button>
+    </div>
+    <button class="btn btn-accent" onclick="openExportModal()">↓ Export</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+
+    <div class="panel open" id="p-upload">
+      <div class="panel-header" onclick="togglePanel('p-upload')"><span>Source</span><span class="arrow">▶</span></div>
+      <div class="panel-body">
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" accept="image/*,video/*" onchange="handleFile(event)">
+          <div class="icon">⬆</div>
+          <p>Click or drop image / video</p>
+        </div>
+        <div class="source-thumb" id="sourceThumb" style="display:none">
+          <input type="file" accept="image/*,video/*" onchange="handleFile(event)">
+          <canvas id="thumbCanvas"></canvas>
+          <span class="replace-badge">Replace</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel open" id="p-dither">
+      <div class="panel-header" onclick="togglePanel('p-dither')"><span>Dither Algorithm</span><span class="arrow">▶</span></div>
+      <div class="panel-body">
+        <div class="row">
+          <label>Mode</label>
+          <select id="ditherMode" onchange="pushHistory();render()">
+            <option value="threshold">Threshold</option>
+            <option value="ordered" selected>Ordered (Bayer)</option>
+            <option value="floyd">Floyd-Steinberg</option>
+            <option value="atkinson">Atkinson</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Levels</label>
+          <input type="range" id="levelsSlider" min="2" max="7" step="1" value="7" oninput="updateSlider('levels',this.value)">
+          <span class="val" id="levelsVal">7</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel open" id="p-baseshape">
+      <div class="panel-header" onclick="togglePanel('p-baseshape')"><span>Shape</span><span class="arrow">▶</span></div>
+      <div class="panel-body">
+        <select id="baseShapeSelect" onchange="setBaseShape(this.value)">
+          <option value="circle">● Circle</option>
+          <option value="square">■ Square</option>
+          <option value="triangle">▲ Triangle</option>
+          <option value="diamond">◆ Diamond</option>
+          <option value="custom">✦ Custom SVG</option>
+        </select>
+        <div class="svg-slot" id="customShapeSlot" style="margin-top:8px;display:none">
+          <input type="file" accept=".svg,image/svg+xml" onchange="handleCustomShapeUpload(event)" onclick="event.stopPropagation()">
+          <div class="slot-preview" id="customShapePreview">+</div>
+          <div class="slot-label" id="customShapeLabel">Upload custom SVG</div>
+        </div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-top:4px">Override per tonal level with a custom SVG.</p>
+        <div class="svg-slots" id="svgSlots"></div>
+      </div>
+    </div>
+
+    <div class="panel open" id="p-grid">
+      <div class="panel-header" onclick="togglePanel('p-grid')"><span>Grid Resolution</span><span class="arrow">▶</span></div>
+      <div class="panel-body">
+        <div class="row">
+          <label>Columns</label>
+          <input type="range" id="colsSlider" min="4" max="120" value="40" oninput="updateSlider('cols',this.value)">
+          <span class="val" id="colsVal">40</span>
+        </div>
+        <div class="row">
+          <label>Rows</label>
+          <input type="range" id="rowsSlider" min="4" max="120" value="40" oninput="updateSlider('rows',this.value)">
+          <span class="val" id="rowsVal">40</span>
+        </div>
+        <div class="toggle-row">
+          <label style="margin:0">Link rows to cols</label>
+          <button class="toggle on" id="linkToggle" onclick="toggleLink()"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel open" id="p-shading">
+      <div class="panel-header" onclick="togglePanel('p-shading')"><span>Tone Mapping</span><span class="arrow">▶</span></div>
+      <div class="panel-body">
+        <div class="row">
+          <label>Threshold</label>
+          <input type="range" id="threshSlider" min="0" max="255" value="128" oninput="updateSlider('thresh',this.value)">
+          <span class="val" id="threshVal">128</span>
+        </div>
+        <div class="row">
+          <label>Contrast</label>
+          <input type="range" id="contrastSlider" min="0" max="4" step="0.05" value="1.0" oninput="updateSlider('contrast',this.value)">
+          <span class="val" id="contrastVal">1.00</span>
+        </div>
+        <div class="row">
+          <label>Shape Scale</label>
+          <input type="range" id="scaleSlider" min="0.05" max="1.5" step="0.01" value="0.85" oninput="updateSlider('scale',this.value)">
+          <span class="val" id="scaleVal">0.85</span>
+        </div>
+        <div class="row">
+          <label>Scale w/ tone</label>
+          <input type="range" id="toneScaleSlider" min="-2" max="2" step="0.05" value="1.0" oninput="updateSlider('toneScale',this.value)">
+          <span class="val" id="toneScaleVal">1.00</span>
+        </div>
+        <div class="toggle-row">
+          <label style="margin:0">Invert tones</label>
+          <button class="toggle" id="invertToggle" onclick="toggleInvert()"></button>
+        </div>
+        <div class="toggle-row">
+          <label style="margin:0">Invert shape scale</label>
+          <button class="toggle" id="invertScaleToggle" onclick="toggleInvertScale()"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel open" id="p-bg">
+      <div class="panel-header" onclick="togglePanel('p-bg')"><span>Background Color</span><span class="arrow">▶</span></div>
+      <div class="panel-body">
+        <div class="color-input-wrap">
+          <input type="color" id="bgColor" value="#0a0a0a" oninput="updateBg()">
+          <input type="text" class="hex-input" id="bgHex" value="#0a0a0a" oninput="syncBgHex()">
+        </div>
+      </div>
+    </div>
+
+
+
+  </div>
+
+  <div class="canvas-area">
+    <div class="zoom-overlay" id="zoomOverlay">
+      <select id="ratioSelect" onchange="setCropRatio(this.value)" title="Crop Ratio">
+        <option value="original">Original</option>
+        <option value="free">Free</option>
+        <option value="1:1" selected>1:1</option>
+        <option value="4:3">4:3</option>
+        <option value="3:4">3:4</option>
+        <option value="16:9">16:9</option>
+        <option value="9:16">9:16</option>
+      </select>
+      <div class="ws-sep"></div>
+      <div class="zoom-group">
+        <button class="snap-btn" onclick="setZoom(zoomLevel - 0.25)" title="Zoom out (Ctrl+−)">−</button>
+        <span class="zoom-val" id="zoomVal">100%</span>
+        <button class="snap-btn" onclick="setZoom(zoomLevel + 0.25)" title="Zoom in (Ctrl+=)">+</button>
+        <button class="snap-btn icon-btn" onclick="setZoom(1)" title="Reset zoom"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="6" r="1.5"/><line x1="6" y1="0" x2="6" y2="3.5"/><line x1="6" y1="8.5" x2="6" y2="12"/><line x1="0" y1="6" x2="3.5" y2="6"/><line x1="8.5" y1="6" x2="12" y2="6"/></svg></button>
+      </div>
+    </div>
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">⬡</div>
+      <div>Drop an image or video to begin<br><span style="font-size:10px;opacity:0.5">supports jpg · png · gif · mp4 · webm</span></div>
+    </div>
+    <div class="canvas-pair" id="canvasPair" style="display:none">
+      <div class="canvas-wrap">
+        <canvas id="ditheredCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <div class="modal-head">
+      EXPORT
+      <button class="modal-close" onclick="closeExportModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row">
+        <label>Format</label>
+        <div class="fmt-btns">
+          <button class="fmt-btn active" data-fmt="png" onclick="setFmt('png')">PNG</button>
+          <button class="fmt-btn" data-fmt="svg" onclick="setFmt('svg')">SVG</button>
+          <button class="fmt-btn" data-fmt="jpeg" onclick="setFmt('jpeg')">JPEG</button>
+          <button class="fmt-btn" data-fmt="webp" onclick="setFmt('webp')">WebP</button>
+          <button class="fmt-btn fmt-video" data-fmt="gif" onclick="setFmt('gif')" style="display:none">GIF</button>
+          <button class="fmt-btn fmt-video" data-fmt="webm" onclick="setFmt('webm')" style="display:none">WebM</button>
+        </div>
+      </div>
+      <div class="modal-row quality-row" id="qualityRow">
+        <label>Quality</label>
+        <input type="range" id="qualitySlider" min="0.1" max="1" step="0.05" value="0.92" oninput="onQuality(this.value)">
+        <span class="val" id="qualityVal">92%</span>
+      </div>
+      <div class="modal-row">
+        <label>Width × Height</label>
+        <div class="dim-inputs">
+          <input type="number" id="expW" value="1200" min="64" max="8000" oninput="syncExpDim('w')">
+          <span class="dim-sep">×</span>
+          <input type="number" id="expH" value="1200" min="64" max="8000" oninput="syncExpDim('h')">
+          <span style="font-size:11px;color:var(--muted)">px</span>
+        </div>
+      </div>
+      <div class="modal-row">
+        <label>Presets</label>
+        <div class="preset-btns">
+          <button class="preset-btn" onclick="setPreset(512,512)">512²</button>
+          <button class="preset-btn" onclick="setPreset(1024,1024)">1024²</button>
+          <button class="preset-btn" onclick="setPreset(1200,1200)">1200²</button>
+          <button class="preset-btn" onclick="setPreset(2048,2048)">2048²</button>
+          <button class="preset-btn" onclick="setPreset(4096,4096)">4K²</button>
+          <button class="preset-btn" onclick="setPreset(1920,1080)">1920×1080</button>
+          <button class="preset-btn" onclick="setPreset(1080,1350)">1080×1350</button>
+          <button class="preset-btn" onclick="setPreset(1080,1920)">1080×1920</button>
+        </div>
+      </div>
+      <div class="export-info" id="exportInfo">Output: 1200 × 1200 px · PNG · lossless</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeExportModal()">Cancel</button>
+      <button class="btn btn-accent" id="exportBtn" onclick="doExport()">↓ Download</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const LEVELS = 7;
+const SHADE_COLORS = ['#0d0d0d','#2b2b2b','#555555','#808080','#aaaaaa','#d4d4d4','#f5f5f5'];
+
+let state = {
+  sourceImage: null, sourceVideo: null,
+  cols: 40, rows: 40, linkRowsCols: true, cropRatio: '1:1', baseShape: 'circle',
+  baseShapeSvgData: null, baseShapeImgs: new Array(7).fill(null),
+  bgColor: '#0a0a0a', threshold: 128, contrast: 1.0,
+  scale: 0.85, toneScale: 1.0, invert: false, invertScale: false,
+  rotation: 0, ditherMode: 'ordered', levels: 7, activeTone: 3,
+  svgData: new Array(7).fill(null),
+  svgColors: ['#0d0d0d','#2b2b2b','#555555','#808080','#aaaaaa','#d4d4d4','#f5f5f5'],
+  svgImages: new Array(7).fill(null),
+  exportFmt: 'png', exportW: 1200, exportH: 1200, exportQuality: 0.92,
+};
+
+let animFrame = null;
+let zoomLevel = 1;
+const srcCanvas = document.createElement('canvas');
+const srcCtx = srcCanvas.getContext('2d');
+
+/* ── History ─────────────────────────────────────────────── */
+const HISTORY_MAX = 50;
+let history = [];
+let historyIdx = -1;
+let _suppressSnapshot = false;
+
+function snapshotableKeys() {
+  return {
+    cols: state.cols, rows: state.rows, linkRowsCols: state.linkRowsCols,
+    cropRatio: state.cropRatio, baseShape: state.baseShape, bgColor: state.bgColor,
+    threshold: state.threshold, contrast: state.contrast,
+    scale: state.scale, toneScale: state.toneScale,
+    invert: state.invert, invertScale: state.invertScale,
+    rotation: state.rotation, ditherMode: state.ditherMode,
+    levels: state.levels, svgColors: [...state.svgColors],
+  };
+}
+
+function pushHistory() {
+  if (_suppressSnapshot) return;
+  const snap = snapshotableKeys();
+  if (historyIdx >= 0) {
+    const last = history[historyIdx];
+    if (JSON.stringify(last) === JSON.stringify(snap)) return;
+  }
+  history = history.slice(0, historyIdx + 1);
+  history.push(snap);
+  if (history.length > HISTORY_MAX) history.shift();
+  historyIdx = history.length - 1;
+  refreshUndoRedo();
+}
+
+function refreshUndoRedo() {
+  const ub = document.getElementById('undoBtn');
+  const rb = document.getElementById('redoBtn');
+  if (ub) ub.disabled = historyIdx <= 0;
+  if (rb) rb.disabled = historyIdx >= history.length - 1;
+}
+
+function applySnapshot(snap) {
+  _suppressSnapshot = true;
+  Object.assign(state, snap);
+  state.svgColors = [...snap.svgColors];
+  syncUIFromState();
+  render();
+  _suppressSnapshot = false;
+  refreshUndoRedo();
+}
+
+function syncUIFromState() {
+  document.getElementById('colsSlider').value = state.cols;
+  document.getElementById('colsVal').textContent = state.cols;
+  document.getElementById('rowsSlider').value = state.rows;
+  document.getElementById('rowsVal').textContent = state.rows;
+  document.getElementById('threshSlider').value = state.threshold;
+  document.getElementById('threshVal').textContent = state.threshold;
+  document.getElementById('contrastSlider').value = state.contrast;
+  document.getElementById('contrastVal').textContent = state.contrast.toFixed(2);
+  document.getElementById('scaleSlider').value = state.scale;
+  document.getElementById('scaleVal').textContent = state.scale.toFixed(2);
+  document.getElementById('toneScaleSlider').value = state.toneScale;
+  document.getElementById('toneScaleVal').textContent = state.toneScale.toFixed(2);
+  document.getElementById('levelsSlider').value = state.levels;
+  document.getElementById('levelsVal').textContent = state.levels;
+  document.getElementById('bgColor').value = state.bgColor;
+  document.getElementById('bgHex').value = state.bgColor;
+  document.getElementById('ditherMode').value = state.ditherMode;
+  const ratioSel = document.getElementById('ratioSelect'); if (ratioSel) ratioSel.value = state.cropRatio;
+  document.getElementById('baseShapeSelect').value = state.baseShape;
+  document.getElementById('linkToggle').classList.toggle('on', state.linkRowsCols);
+  document.getElementById('invertToggle').classList.toggle('on', state.invert);
+  document.getElementById('invertScaleToggle').classList.toggle('on', state.invertScale);
+  buildSvgSlots();
+}
+
+function undo() {
+  if (historyIdx <= 0) return;
+  historyIdx--;
+  applySnapshot(history[historyIdx]);
+}
+
+function redo() {
+  if (historyIdx >= history.length - 1) return;
+  historyIdx++;
+  applySnapshot(history[historyIdx]);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+  if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); setZoom(zoomLevel + 0.25); }
+  if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); setZoom(zoomLevel - 0.25); }
+  if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); setZoom(1); }
+});
+
+document.querySelector('.canvas-area').addEventListener('wheel', (e) => {
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    setZoom(zoomLevel + (e.deltaY < 0 ? 0.25 : -0.25));
+  }
+}, { passive: false });
+
+const BAYER4 = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+function getLuma(r,g,b){ return 0.299*r+0.587*g+0.114*b; }
+function clamp(v){ return Math.max(0,Math.min(255,v)); }
+function applyContrast(v,c,t){ return clamp((v-t)*c+t); }
+
+function togglePanel(id){ document.getElementById(id).classList.toggle('open'); }
+
+function updateSlider(key, val) {
+  const n = parseFloat(val);
+  if(key==='cols'){ state.cols=n; document.getElementById('colsVal').textContent=n; if(state.linkRowsCols){ state.rows=n; document.getElementById('rowsSlider').value=n; document.getElementById('rowsVal').textContent=n; } }
+  else if(key==='rows'){ state.rows=n; document.getElementById('rowsVal').textContent=n; }
+  else if(key==='thresh'){ state.threshold=n; document.getElementById('threshVal').textContent=n; }
+  else if(key==='contrast'){ state.contrast=n; document.getElementById('contrastVal').textContent=n.toFixed(2); }
+  else if(key==='scale'){ state.scale=n; document.getElementById('scaleVal').textContent=n.toFixed(2); }
+  else if(key==='toneScale'){ state.toneScale=n; document.getElementById('toneScaleVal').textContent=n.toFixed(2); }
+  else if(key==='levels'){ state.levels=parseInt(val); document.getElementById('levelsVal').textContent=val; buildSvgSlots(); }
+  pushHistory();
+  render();
+}
+
+function setBaseShape(shape) {
+  state.baseShape = shape;
+  document.getElementById('baseShapeSelect').value = shape;
+  const slot = document.getElementById('customShapeSlot');
+  if (slot) slot.style.display = shape === 'custom' ? '' : 'none';
+  pushHistory(); render();
+}
+
+async function handleCustomShapeUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  state.baseShapeSvgData = await file.text();
+  document.getElementById('customShapeLabel').textContent = file.name.replace('.svg','').slice(0,14);
+  await rebuildAllBaseShapeImages();
+  setBaseShape('custom');
+}
+
+async function rebuildBaseShapeImage(index) {
+  if (!state.baseShapeSvgData) { state.baseShapeImgs[index] = null; return; }
+  const colored = state.baseShapeSvgData
+    .replace(/fill="[^"]*"/g, `fill="${state.svgColors[index]}"`)
+    .replace(/stroke="[^"]*"/g, `stroke="${state.svgColors[index]}"`);
+  const blob = new Blob([colored], {type:'image/svg+xml'});
+  const url = URL.createObjectURL(blob);
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => { state.baseShapeImgs[index] = img; URL.revokeObjectURL(url); res(); };
+    img.src = url;
+  });
+}
+
+async function rebuildAllBaseShapeImages() {
+  await Promise.all([...Array(7).keys()].map(i => rebuildBaseShapeImage(i)));
+  render();
+}
+
+function drawBuiltinShape(ctx, shape, r) {
+  ctx.beginPath();
+  switch(shape) {
+    case 'square':
+      ctx.rect(-r, -r, r * 2, r * 2); break;
+    case 'triangle':
+      ctx.moveTo(0, -r);
+      ctx.lineTo(r * 0.866, r * 0.5);
+      ctx.lineTo(-r * 0.866, r * 0.5);
+      ctx.closePath(); break;
+    case 'diamond':
+      ctx.moveTo(0, -r); ctx.lineTo(r, 0);
+      ctx.lineTo(0, r);  ctx.lineTo(-r, 0);
+      ctx.closePath(); break;
+    default: // circle
+      ctx.arc(0, 0, r, 0, Math.PI * 2); break;
+  }
+  ctx.fill();
+}
+
+function buildShapeElement(shape, cx, cy, r, rotation, color) {
+  const t = `rotate(${rotation},${cx},${cy})`;
+  const x = parseFloat(cx), y = parseFloat(cy);
+  switch(shape) {
+    case 'square':
+      return `<rect x="${(x-r).toFixed(2)}" y="${(y-r).toFixed(2)}" width="${(r*2).toFixed(2)}" height="${(r*2).toFixed(2)}" fill="${color}" transform="${t}"/>`;
+    case 'triangle': {
+      const pts = `${x.toFixed(2)},${(y-r).toFixed(2)} ${(x+r*0.866).toFixed(2)},${(y+r*0.5).toFixed(2)} ${(x-r*0.866).toFixed(2)},${(y+r*0.5).toFixed(2)}`;
+      return `<polygon points="${pts}" fill="${color}" transform="${t}"/>`;
+    }
+    case 'diamond': {
+      const pts = `${x.toFixed(2)},${(y-r).toFixed(2)} ${(x+r).toFixed(2)},${y.toFixed(2)} ${x.toFixed(2)},${(y+r).toFixed(2)} ${(x-r).toFixed(2)},${y.toFixed(2)}`;
+      return `<polygon points="${pts}" fill="${color}" transform="${t}"/>`;
+    }
+    default:
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" transform="${t}"/>`;
+  }
+}
+
+function setCropRatio(ratio) {
+  state.cropRatio = ratio;
+  const sel = document.getElementById('ratioSelect');
+  if (sel) sel.value = ratio;
+  pushHistory();
+  if (state.sourceImage) loadImageToCanvas();
+  else if (state.sourceVideo) {}
+}
+function computeCrop(srcW, srcH) {
+  if (state.cropRatio === 'free' || state.cropRatio === 'original') return { sx: 0, sy: 0, w: srcW, h: srcH };
+  const [rw, rh] = state.cropRatio.split(':').map(Number);
+  const targetAspect = rw / rh;
+  const srcAspect = srcW / srcH;
+  let w, h;
+  if (targetAspect > srcAspect) { w = srcW; h = Math.round(srcW / targetAspect); }
+  else { h = srcH; w = Math.round(srcH * targetAspect); }
+  return { sx: Math.floor((srcW - w) / 2), sy: Math.floor((srcH - h) / 2), w, h };
+}
+function toggleLink(){ state.linkRowsCols=!state.linkRowsCols; document.getElementById('linkToggle').classList.toggle('on',state.linkRowsCols); pushHistory(); }
+function toggleInvert(){ state.invert=!state.invert; document.getElementById('invertToggle').classList.toggle('on',state.invert); pushHistory(); render(); }
+function toggleInvertScale(){ state.invertScale=!state.invertScale; document.getElementById('invertScaleToggle').classList.toggle('on',state.invertScale); pushHistory(); render(); }
+
+function setZoom(z) {
+  zoomLevel = Math.max(0.25, Math.min(4, Math.round(parseFloat(z) * 4) / 4));
+  const el = document.getElementById('zoomVal');
+  if (el) el.textContent = Math.round(zoomLevel * 100) + '%';
+  render();
+}
+
+function setRotationFree(deg) {
+  deg = parseFloat(deg);
+  state.rotation = deg;
+  pushHistory();
+  render();
+}
+
+function updateBg(){ const v=document.getElementById('bgColor').value; state.bgColor=v; document.getElementById('bgHex').value=v; pushHistory(); render(); }
+function syncBgHex(){ const v=document.getElementById('bgHex').value.trim(); if(/^#[0-9a-fA-F]{6}$/.test(v)){ state.bgColor=v; document.getElementById('bgColor').value=v; pushHistory(); render(); } }
+
+function labelsForLevels(n) {
+  // pick descriptive names sized to the current level count
+  const tables = {
+    2: ['Shadow','Highlight'],
+    3: ['Shadow','Midtone','Highlight'],
+    4: ['Shadow','Mid Shd.','Mid Hlt.','Highlight'],
+    5: ['Shadow','Mid Shd.','Midtone','Mid Hlt.','Highlight'],
+    6: ['Shadow','Dark Shd.','Mid Shd.','Mid Hlt.','Light Hlt.','Highlight'],
+    7: ['Shadow','Dark Shd.','Mid Shd.','Midtone','Mid Hlt.','Light Hlt.','Highlight'],
+  };
+  return tables[n] || tables[7];
+}
+
+function buildSvgSlots() {
+  const container = document.getElementById('svgSlots');
+  container.innerHTML = '';
+  const names = labelsForLevels(state.levels);
+  for(let i=0;i<state.levels;i++){
+    const slot = document.createElement('div');
+    slot.className = 'svg-slot';
+    const inp = document.createElement('input');
+    inp.type='file'; inp.accept='.svg,image/svg+xml';
+    inp.onchange=(e)=>handleSvgUpload(e,i);
+    inp.onclick=(e)=>e.stopPropagation();
+    const preview = document.createElement('div');
+    preview.className='slot-preview'; preview.id=`svgPreview${i}`; preview.textContent=i+1;
+    const lbl = document.createElement('div');
+    lbl.className='slot-label'; lbl.id=`svgLabel${i}`; lbl.textContent=names[i];
+    const cw = document.createElement('div');
+    cw.className='slot-color'; cw.style.background=state.svgColors[i];
+    const ci = document.createElement('input');
+    ci.type='color'; ci.value=state.svgColors[i];
+    ci.onclick=(e)=>e.stopPropagation();
+    ci.oninput=(e)=>{ state.svgColors[i]=e.target.value; cw.style.background=e.target.value; pushHistory(); rebuildSvgImages(i); };
+    cw.appendChild(ci);
+    slot.appendChild(inp); slot.appendChild(preview); slot.appendChild(lbl); slot.appendChild(cw);
+    container.appendChild(slot);
+  }
+}
+
+async function handleSvgUpload(e, index) {
+  const file = e.target.files[0]; if(!file) return;
+  state.svgData[index] = await file.text();
+  document.getElementById(`svgLabel${index}`).textContent = file.name.replace('.svg','').slice(0,12);
+  rebuildSvgImages(index);
+}
+
+async function rebuildSvgImages(index) {
+  if(!state.svgData[index]){ state.svgImages[index]=null; render(); return; }
+  const colored = state.svgData[index].replace(/fill="[^"]*"/g,`fill="${state.svgColors[index]}"`).replace(/stroke="[^"]*"/g,`stroke="${state.svgColors[index]}"`);
+  const blob = new Blob([colored],{type:'image/svg+xml'});
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = ()=>{ state.svgImages[index]=img; URL.revokeObjectURL(url); render(); };
+  img.src = url;
+}
+
+function handleFile(e) {
+  const file = e.target.files[0]; if(!file) return;
+  if(file.type.startsWith('video/')){ loadVideo(file); return; }
+  const img = new Image();
+  img.onload = ()=>{ state.sourceImage=img; state.sourceVideo=null; if(animFrame){ cancelAnimationFrame(animFrame); animFrame=null; } loadImageToCanvas(); };
+  img.src = URL.createObjectURL(file);
+}
+
+function loadVideo(file) {
+  const video = document.createElement('video');
+  video.src=URL.createObjectURL(file); video.loop=true; video.muted=true;
+  video.onloadeddata=()=>{ video.play(); state.sourceVideo=video; state.sourceImage=null; showCanvases(); animateVideo(); };
+}
+
+function animateVideo(){ if(!state.sourceVideo) return; renderFromVideoFrame(); animFrame=requestAnimationFrame(animateVideo); }
+
+function renderFromVideoFrame() {
+  const v=state.sourceVideo; if(!v||v.readyState<2) return;
+  const {sx,sy,w,h}=computeCrop(v.videoWidth,v.videoHeight);
+  srcCanvas.width=w; srcCanvas.height=h;
+  srcCtx.drawImage(v,sx,sy,w,h,0,0,w,h);
+  const dispW=Math.round(400*zoomLevel), dispH=Math.round(dispW*h/w);
+  drawDithered(document.getElementById('ditheredCanvas'),dispW,dispH);
+  updateSourceThumb();
+}
+
+function loadImageToCanvas() {
+  const img=state.sourceImage;
+  const {sx,sy,w,h}=computeCrop(img.width,img.height);
+  srcCanvas.width=w; srcCanvas.height=h;
+  srcCtx.drawImage(img,sx,sy,w,h,0,0,w,h);
+  showCanvases(); render();
+}
+
+function showCanvases() {
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('canvasPair').style.display='flex';
+  document.getElementById('toolbar').style.display='flex';
+  document.getElementById('zoomOverlay').style.display='flex';
+  document.getElementById('uploadZone').style.display='none';
+  document.getElementById('sourceThumb').style.display='block';
+  if (historyIdx < 0) pushHistory();
+}
+
+function render() {
+  if(!state.sourceImage&&!state.sourceVideo) return;
+  if(!state.sourceVideo) {
+    const srcW=srcCanvas.width, srcH=srcCanvas.height;
+    if(!srcW) return;
+    const disp=Math.round(400*zoomLevel), dispH=Math.round(disp*srcH/srcW);
+    drawDithered(document.getElementById('ditheredCanvas'),disp,dispH);
+    updateSourceThumb();
+  }
+}
+
+function updateSourceThumb() {
+  const srcW=srcCanvas.width, srcH=srcCanvas.height;
+  if(!srcW) return;
+  const tc=document.getElementById('thumbCanvas');
+  const tw=240, th=Math.round(tw*srcH/srcW);
+  tc.width=tw; tc.height=th;
+  tc.getContext('2d').drawImage(srcCanvas,0,0,tw,th);
+}
+
+function computeQuantized(cols, rows) {
+  const srcW=srcCanvas.width, srcH=srcCanvas.height;
+  const pixData=srcCtx.getImageData(0,0,srcW,srcH).data;
+  const threshold=state.threshold, contrast=state.contrast, levels=state.levels;
+  const fsErr=new Float32Array(cols*rows);
+
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) {
+    let sR=0,sG=0,sB=0,cnt=0;
+    const x0=Math.floor(c*srcW/cols),y0=Math.floor(r*srcH/rows);
+    const x1=Math.floor((c+1)*srcW/cols),y1=Math.floor((r+1)*srcH/rows);
+    for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++){
+      const i=(y*srcW+x)*4; sR+=pixData[i]; sG+=pixData[i+1]; sB+=pixData[i+2]; cnt++;
+    }
+    fsErr[r*cols+c]=getLuma(sR/cnt,sG/cnt,sB/cnt);
+  }
+
+  const quantized=new Uint8Array(cols*rows);
+  const mode=document.getElementById('ditherMode').value;
+
+  if(mode==='floyd') {
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const idx=r*cols+c;
+      let val=applyContrast(fsErr[idx],contrast,threshold);
+      if(state.invert) val=255-val;
+      const qv=Math.round((val/255)*(levels-1))/(levels-1)*255;
+      const err=val-qv;
+      quantized[idx]=Math.round(qv/255*(levels-1));
+      if(c+1<cols) fsErr[idx+1]+=err*7/16;
+      if(r+1<rows){ if(c>0) fsErr[idx+cols-1]+=err*3/16; fsErr[idx+cols]+=err*5/16; if(c+1<cols) fsErr[idx+cols+1]+=err/16; }
+    }
+  } else if(mode==='atkinson') {
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const idx=r*cols+c;
+      let val=applyContrast(fsErr[idx],contrast,threshold);
+      if(state.invert) val=255-val;
+      const qv=Math.round((val/255)*(levels-1))/(levels-1)*255;
+      const err=(val-qv)/8;
+      quantized[idx]=Math.round(qv/255*(levels-1));
+      for(const[dr,dc] of [[0,1],[0,2],[1,-1],[1,0],[1,1],[2,0]]){
+        const nr=r+dr,nc=c+dc; if(nr<rows&&nc>=0&&nc<cols) fsErr[nr*cols+nc]+=err;
+      }
+    }
+  } else {
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const idx=r*cols+c;
+      let val=applyContrast(fsErr[idx],contrast,threshold);
+      if(state.invert) val=255-val;
+      if(mode==='ordered'){ const bv=(BAYER4[r%4][c%4]/16-0.5)*(255/levels); val=clamp(val+bv); }
+      quantized[idx]=Math.min(levels-1,Math.round((val/255)*(levels-1)));
+    }
+  }
+  return quantized;
+}
+
+function drawDithered(canvas, displayW, displayH) {
+  const cols=state.cols, rows=state.rows;
+  const quantized=computeQuantized(cols,rows);
+  canvas.width=displayW; canvas.height=displayH;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle=state.bgColor;
+  ctx.fillRect(0,0,displayW,displayH);
+
+  const cellW=displayW/cols, cellH=displayH/rows;
+  const cellSize=Math.min(cellW,cellH);
+  const rotRad=state.rotation*Math.PI/180;
+  const levels=state.levels;
+
+  for(let row=0;row<rows;row++) for(let col=0;col<cols;col++){
+    let level=quantized[row*cols+col];
+    level=Math.round(level*(LEVELS-1)/(levels-1));
+    const t=level/(LEVELS-1);
+    const raw=state.invertScale?(1-t):t;
+    let sc=Math.max(0.02,Math.min(1.4,(0.5+(raw-0.5)*state.toneScale)*state.scale));
+    const cx=col*cellW+cellW/2, cy=row*cellH+cellH/2;
+    const r=(cellSize/2)*sc;
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(rotRad);
+    const svgImg=state.svgImages[level];
+    if(svgImg){ ctx.drawImage(svgImg,-r,-r,r*2,r*2); }
+    else if(state.baseShape==='custom'&&state.baseShapeImgs[level]){ ctx.drawImage(state.baseShapeImgs[level],-r,-r,r*2,r*2); }
+    else { ctx.fillStyle=state.svgColors[level]; drawBuiltinShape(ctx,state.baseShape,r); }
+    ctx.restore();
+  }
+}
+
+/* Export */
+function openExportModal(){
+  const isVid=!!state.sourceVideo;
+  document.querySelectorAll('.fmt-video').forEach(b=>b.style.display=isVid?'':'none');
+  if(isVid && !['gif','webm'].includes(state.exportFmt)) setFmt('gif');
+  else if(!isVid && ['gif','webm'].includes(state.exportFmt)) setFmt('png');
+  document.getElementById('exportModal').classList.add('open');
+  updateExportInfo();
+}
+function closeExportModal(){ document.getElementById('exportModal').classList.remove('open'); }
+
+function setFmt(fmt){
+  state.exportFmt=fmt;
+  document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.toggle('active',b.dataset.fmt===fmt));
+  document.getElementById('qualityRow').style.display=(fmt==='jpeg'||fmt==='webp')?'flex':'none';
+  updateExportInfo();
+}
+
+function setPreset(w,h){
+  state.exportW=w; state.exportH=h;
+  document.getElementById('expW').value=w; document.getElementById('expH').value=h;
+  updateExportInfo();
+}
+
+function syncExpDim(axis){
+  if(axis==='w') state.exportW=parseInt(document.getElementById('expW').value)||1200;
+  else state.exportH=parseInt(document.getElementById('expH').value)||1200;
+  updateExportInfo();
+}
+
+function onQuality(v){
+  state.exportQuality=parseFloat(v);
+  document.getElementById('qualityVal').textContent=Math.round(v*100)+'%';
+  updateExportInfo();
+}
+
+function updateExportInfo(){
+  const f=state.exportFmt;
+  let extra;
+  if(f==='gif') extra=' · animated · ~12 fps';
+  else if(f==='webm') extra=' · animated video';
+  else if(f==='jpeg'||f==='webp') extra=` · Q${Math.round(state.exportQuality*100)}%`;
+  else extra=' · lossless';
+  document.getElementById('exportInfo').textContent=`Output: ${state.exportW} × ${state.exportH} px · ${f.toUpperCase()}${extra}`;
+}
+
+function buildSvgString(w,h){
+  const cols=state.cols, rows=state.rows;
+  const quantized=computeQuantized(cols,rows);
+  const cellW=w/cols, cellH=h/rows;
+  const cellSize=Math.min(cellW,cellH);
+  const levels=state.levels;
+  let shapes='';
+  for(let row=0;row<rows;row++) for(let col=0;col<cols;col++){
+    let level=quantized[row*cols+col];
+    level=Math.round(level*(LEVELS-1)/(levels-1));
+    const t=level/(LEVELS-1);
+    const raw=state.invertScale?(1-t):t;
+    let sc=Math.max(0.02,Math.min(1.4,(0.5+(raw-0.5)*state.toneScale)*state.scale));
+    const cx=(col*cellW+cellW/2).toFixed(2), cy=(row*cellH+cellH/2).toFixed(2);
+    const r=((cellSize/2)*sc).toFixed(2);
+    const color=state.svgColors[level];
+    shapes+=buildShapeElement(state.baseShape,cx,cy,parseFloat(r),state.rotation,color);
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="${w}" height="${h}" fill="${state.bgColor}"/>${shapes}</svg>`;
+}
+
+function doExport(){
+  const fmt=state.exportFmt;
+  if(fmt==='gif')  return exportAnimated('gif');
+  if(fmt==='webm') return exportAnimated('webm');
+  const w=state.exportW, h=state.exportH;
+  if(fmt==='svg'){
+    const blob=new Blob([buildSvgString(w,h)],{type:'image/svg+xml'});
+    downloadBlob(blob,'dithered.svg');
+    closeExportModal(); return;
+  }
+  const off=document.createElement('canvas');
+  drawDithered(off,w,h);
+  const mime={'png':'image/png','jpeg':'image/jpeg','webp':'image/webp'}[fmt];
+  const ext={'png':'png','jpeg':'jpg','webp':'webp'}[fmt];
+  const q=(fmt==='jpeg'||fmt==='webp')?state.exportQuality:undefined;
+  const a=document.createElement('a'); a.download=`dithered.${ext}`; a.href=off.toDataURL(mime,q); a.click();
+  closeExportModal();
+}
+
+function downloadBlob(blob,name){
+  const a=document.createElement('a'); a.download=name; a.href=URL.createObjectURL(blob); a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
+function setExporting(on,label){
+  const btn=document.getElementById('exportBtn');
+  btn.disabled=on;
+  btn.textContent=on?(label||'Encoding…'):'↓ Download';
+  btn.style.opacity=on?'0.6':'1';
+}
+
+// Render one video frame (cropped) into an offscreen canvas using the live pipeline
+function renderExportFrame(off,w,h){
+  const v=state.sourceVideo;
+  const c=computeCrop(v.videoWidth,v.videoHeight);
+  srcCanvas.width=c.w; srcCanvas.height=c.h;
+  srcCtx.drawImage(v,c.sx,c.sy,c.w,c.h,0,0,c.w,c.h);
+  drawDithered(off,w,h);
+}
+function seekVideo(v,t){
+  return new Promise(res=>{ v.addEventListener('seeked',res,{once:true}); v.currentTime=t; });
+}
+
+// ── GIF library (loaded on demand from CDN) ──
+const GIF_JS_URL='https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js';
+const GIF_WORKER_URL='https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js';
+let _gifLibPromise=null;
+function ensureGifLib(){
+  if(window.GIF) return Promise.resolve();
+  if(_gifLibPromise) return _gifLibPromise;
+  _gifLibPromise=new Promise((res,rej)=>{
+    const s=document.createElement('script'); s.src=GIF_JS_URL;
+    s.onload=res; s.onerror=()=>rej(new Error('Could not load GIF library (offline?)'));
+    document.head.appendChild(s);
+  });
+  return _gifLibPromise;
+}
+async function gifWorkerUrl(){
+  const resp=await fetch(GIF_WORKER_URL);
+  const txt=await resp.text();
+  return URL.createObjectURL(new Blob([txt],{type:'application/javascript'}));
+}
+
+async function exportAnimated(kind){
+  const v=state.sourceVideo;
+  if(!v){ alert('Animated export needs a video source.'); return; }
+  if(animFrame){ cancelAnimationFrame(animFrame); animFrame=null; }
+  const wasLoop=v.loop, wasTime=v.currentTime;
+  const w=state.exportW, h=state.exportH;
+  const off=document.createElement('canvas'); off.width=w; off.height=h;
+  setExporting(true, kind==='gif'?'Building GIF…':'Recording…');
+  try {
+    if(kind==='gif')  await encodeGif(v,off,w,h);
+    else              await encodeWebm(v,off,w,h);
+  } catch(err){
+    alert('Export failed: '+err.message);
+  } finally {
+    setExporting(false);
+    v.loop=wasLoop; v.currentTime=wasTime; v.play().catch(()=>{}); animateVideo();
+    closeExportModal();
+  }
+}
+
+async function encodeGif(v,off,w,h){
+  await ensureGifLib();
+  const workerScript=await gifWorkerUrl();
+  const fps=12, total=v.duration||3;
+  const frames=Math.max(2, Math.min(Math.round(total*fps), 300));
+  const delay=Math.round(1000/fps);
+  v.loop=false; v.pause();
+  const gif=new GIF({workers:2, quality:10, width:w, height:h, workerScript, background:state.bgColor});
+  for(let i=0;i<frames;i++){
+    await seekVideo(v,(i/frames)*total);
+    renderExportFrame(off,w,h);
+    gif.addFrame(off,{copy:true,delay});
+    setExporting(true,`Building GIF… ${Math.round((i+1)/frames*100)}%`);
+  }
+  const blob=await new Promise((res,rej)=>{ gif.on('finished',res); gif.on('abort',()=>rej(new Error('aborted'))); gif.render(); });
+  downloadBlob(blob,'dithered.gif');
+}
+
+async function encodeWebm(v,off,w,h){
+  if(typeof MediaRecorder==='undefined' || !off.captureStream)
+    throw new Error('WebM recording not supported in this browser');
+  let mime='video/webm';
+  if(MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) mime='video/webm;codecs=vp9';
+  else if(MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) mime='video/webm;codecs=vp8';
+  const stream=off.captureStream(30);
+  const rec=new MediaRecorder(stream,{mimeType:mime, videoBitsPerSecond:12000000});
+  const chunks=[]; rec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
+  const stopped=new Promise(res=>{ rec.onstop=res; });
+  v.loop=false; v.pause();
+  await seekVideo(v,0);
+  rec.start();
+  await v.play();
+  await new Promise(res=>{
+    function step(){
+      renderExportFrame(off,w,h);
+      const pct=Math.round((v.currentTime/(v.duration||1))*100);
+      setExporting(true,`Recording… ${Math.min(99,pct)}%`);
+      if(v.ended || v.currentTime>=(v.duration-0.05)){ rec.stop(); res(); return; }
+      animFrame=requestAnimationFrame(step);
+    }
+    step();
+  });
+  await stopped;
+  animFrame=null;
+  const blob=new Blob(chunks,{type:'video/webm'});
+  downloadBlob(blob,'dithered.webm');
+}
+
+document.addEventListener('dragover',(e)=>{e.preventDefault();document.getElementById('dropOverlay').classList.add('active');});
+document.addEventListener('dragleave',(e)=>{if(!e.relatedTarget)document.getElementById('dropOverlay').classList.remove('active');});
+document.addEventListener('drop',(e)=>{
+  e.preventDefault(); document.getElementById('dropOverlay').classList.remove('active');
+  const file=e.dataTransfer.files[0]; if(!file) return;
+  handleFile({target:{files:[file]}});
+});
+document.getElementById('exportModal').addEventListener('click',function(e){if(e.target===this)closeExportModal();});
+
+buildSvgSlots();
+</script>
+</body>
+</html>
